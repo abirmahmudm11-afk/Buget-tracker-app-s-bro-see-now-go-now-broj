@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Spendly</string>
+    <string name="app_tagline">Organize manually. Understand automatically.</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_activity">Activity</string>
+    <string name="nav_add">Add</string>
+    <string name="nav_budgets">Budgets</string>
+    <string name="nav_more">More</string>
+    <string name="action_get_started">Get Started</string>
+    <string name="action_save_transaction">Save Transaction</string>
+    <string name="action_add_expense">Add Expense</string>
+    <string name="action_add_income">Add Income</string>
+    <string name="action_view_all">View All</string>
+    <string name="action_manage_accounts">Manage Accounts</string>
+    <string name="manual_balance_disclaimer">Manual tracking value — not bank-verified</string>
+</resources>
