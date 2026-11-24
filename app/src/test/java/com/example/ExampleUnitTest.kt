@@ -1,12 +1,13 @@
 package com.example
 
+import com.example.model.AccountRecord
 import com.example.model.AccountType
-import com.example.model.BudgetScope
-import com.example.model.MonthPeriod
+import com.example.model.TransactionRecord
 import com.example.model.TransactionType
+import com.example.model.UserProfileRecord
 import com.example.util.ConversionResult
 import com.example.util.MoneyFormatter
-import com.example.viewmodel.SpendlyViewModel
+import com.example.viewmodel.computeSpendlyUiState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,23 +15,16 @@ import org.junit.Test
 class ExampleUnitTest {
     @Test
     fun creditCardRepayment_reducesLiabilityWithoutCountingAsExpense() {
-        val vm = SpendlyViewModel()
-        vm.completeOnboarding("USD", "English", loadPreviewSample = false)
-
-        vm.saveAccount(
-            existingId = null,
+        val checking = AccountRecord(
+            id = "acc_checking",
             name = "Checking",
             type = AccountType.BANK_ACCOUNT,
             institutionName = "Summit",
-            cardNetwork = "",
-            lastFour = "",
             currencyCode = "USD",
             openingBalanceMinor = 100_000L,
-            creditLimitMinor = null,
-            description = "",
         )
-        vm.saveAccount(
-            existingId = null,
+        val card = AccountRecord(
+            id = "acc_card",
             name = "Rewards Card",
             type = AccountType.CREDIT_CARD,
             institutionName = "Summit",
@@ -39,49 +33,45 @@ class ExampleUnitTest {
             currencyCode = "USD",
             openingBalanceMinor = 0L,
             creditLimitMinor = 500_000L,
-            description = "",
         )
 
-        val state1 = vm.uiState.value
-        val checkingId = state1.accounts[0].id
-        val cardId = state1.accounts[1].id
-
-        // Record a $40.00 shopping expense on the credit card
-        vm.saveTransaction(
-            existingId = null,
+        val now = System.currentTimeMillis()
+        val groceryExpense = TransactionRecord(
+            id = "tx_expense",
             type = TransactionType.EXPENSE,
             amountMinor = 4_000L,
             currencyCode = "USD",
-            accountId = cardId,
-            destinationAccountId = null,
+            accountId = card.id,
             categoryId = "cat_groceries",
             description = "Groceries",
             merchant = "Market",
-            dateMillis = System.currentTimeMillis(),
-            notes = "",
+            dateMillis = now,
         )
-        // Record a $40.00 repayment transfer from Checking to Rewards Card
-        vm.saveTransaction(
-            existingId = null,
+        val repayment = TransactionRecord(
+            id = "tx_repay",
             type = TransactionType.TRANSFER,
             amountMinor = 4_000L,
             currencyCode = "USD",
-            accountId = checkingId,
-            destinationAccountId = cardId,
-            categoryId = null,
+            accountId = checking.id,
+            destinationAccountId = card.id,
             description = "Card Repayment",
-            merchant = "",
-            dateMillis = System.currentTimeMillis(),
-            notes = "",
+            dateMillis = now,
+            isCreditCardRepayment = true,
         )
 
-        val state2 = vm.uiState.value
-        val checkingBal = state2.accountSummaries.first { it.account.id == checkingId }.calculatedBalanceMinor
-        val cardOutstanding = state2.accountSummaries.first { it.account.id == cardId }.calculatedBalanceMinor
+        val state = computeSpendlyUiState(
+            profile = UserProfileRecord(defaultCurrencyCode = "USD", onboardingComplete = true),
+            accounts = listOf(checking, card),
+            transactions = listOf(groceryExpense, repayment),
+            budgets = emptyList(),
+        )
+
+        val checkingBal = state.accountSummaries.first { it.account.id == checking.id }.calculatedBalanceMinor
+        val cardOutstanding = state.accountSummaries.first { it.account.id == card.id }.calculatedBalanceMinor
 
         assertEquals(96_000L, checkingBal)
         assertEquals(0L, cardOutstanding)
-        assertEquals(4_000L, state2.monthlyExpensesBaseMinor)
+        assertEquals(4_000L, state.monthlyExpensesBaseMinor)
     }
 
     @Test

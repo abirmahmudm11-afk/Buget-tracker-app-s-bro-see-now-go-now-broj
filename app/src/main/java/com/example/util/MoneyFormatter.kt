@@ -27,9 +27,11 @@ object CurrencyCatalog {
         CurrencySpec("TRY", "₺", "Turkish Lira", 2, null, null, null),
     )
 
+    private val currencyMap: Map<String, CurrencySpec> =
+        supportedCurrencies.associateBy { it.code.uppercase(Locale.US) }
+
     fun findByCode(code: String): CurrencySpec =
-        supportedCurrencies.firstOrNull { it.code.equals(code, ignoreCase = true) }
-            ?: supportedCurrencies.first()
+        currencyMap[code.uppercase(Locale.US)] ?: supportedCurrencies.first()
 }
 
 sealed class ConversionResult {
@@ -45,18 +47,40 @@ sealed class ConversionResult {
 }
 
 object MoneyFormatter {
+    private val zeroDecFormat = ThreadLocal.withInitial {
+        NumberFormat.getNumberInstance(Locale.US).apply {
+            minimumFractionDigits = 0
+            maximumFractionDigits = 0
+        }
+    }
+
+    private val twoDecFormat = ThreadLocal.withInitial {
+        NumberFormat.getNumberInstance(Locale.US).apply {
+            minimumFractionDigits = 2
+            maximumFractionDigits = 2
+        }
+    }
+
+    private fun numberFormatFor(decimals: Int): NumberFormat {
+        return when (decimals) {
+            0 -> zeroDecFormat.get()!!
+            2 -> twoDecFormat.get()!!
+            else -> NumberFormat.getNumberInstance(Locale.US).apply {
+                minimumFractionDigits = decimals
+                maximumFractionDigits = decimals
+            }
+        }
+    }
+
     fun formatMinor(
         amountMinor: Long,
         currencyCode: String,
         showPositivePlus: Boolean = false,
     ): String {
         val spec = CurrencyCatalog.findByCode(currencyCode)
-        val divisor = 10.0.pow(spec.minorDecimals)
+        val divisor = if (spec.minorDecimals == 2) 100.0 else if (spec.minorDecimals == 0) 1.0 else 10.0.pow(spec.minorDecimals)
         val absMajor = abs(amountMinor) / divisor
-        val nf = NumberFormat.getNumberInstance(Locale.US).apply {
-            minimumFractionDigits = spec.minorDecimals
-            maximumFractionDigits = spec.minorDecimals
-        }
+        val nf = numberFormatFor(spec.minorDecimals)
         val sign = when {
             amountMinor < 0 -> "-"
             amountMinor > 0 && showPositivePlus -> "+"
@@ -76,7 +100,7 @@ object MoneyFormatter {
         }
         val parsed = cleaned.toDoubleOrNull() ?: return null
         if (parsed < 0.0) return null
-        val multiplier = 10.0.pow(spec.minorDecimals)
+        val multiplier = if (spec.minorDecimals == 2) 100.0 else if (spec.minorDecimals == 0) 1.0 else 10.0.pow(spec.minorDecimals)
         return (parsed * multiplier).roundToLong()
     }
 
@@ -101,10 +125,12 @@ object MoneyFormatter {
         if (fromRateToUsd == null || toRateToUsd == null || toRateToUsd == 0.0) {
             return ConversionResult.Unavailable("Rate unavailable for $fromCurrencyCode → $toCurrencyCode")
         }
-        val fromMajor = amountMinor / 10.0.pow(fromSpec.minorDecimals)
+        val fromDiv = if (fromSpec.minorDecimals == 2) 100.0 else if (fromSpec.minorDecimals == 0) 1.0 else 10.0.pow(fromSpec.minorDecimals)
+        val toMul = if (toSpec.minorDecimals == 2) 100.0 else if (toSpec.minorDecimals == 0) 1.0 else 10.0.pow(toSpec.minorDecimals)
+        val fromMajor = amountMinor / fromDiv
         val usdMajor = fromMajor * fromRateToUsd
         val targetMajor = usdMajor / toRateToUsd
-        val targetMinor = (targetMajor * 10.0.pow(toSpec.minorDecimals)).roundToLong()
+        val targetMinor = (targetMajor * toMul).roundToLong()
         val effectiveRate = fromRateToUsd / toRateToUsd
         return ConversionResult.Available(
             convertedMinor = targetMinor,
@@ -117,46 +143,47 @@ object MoneyFormatter {
 }
 
 object DateFormatters {
-    private val monthYearFmt = SimpleDateFormat("MMMM yyyy", Locale.US)
-    private val shortMonthFmt = SimpleDateFormat("MMM yyyy", Locale.US)
-    private val dateHeaderFmt = SimpleDateFormat("EEE, MMM d, yyyy", Locale.US)
-    private val shortDateFmt = SimpleDateFormat("MMM d", Locale.US)
-    private val isoDateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    private val monthYearFmt = ThreadLocal.withInitial { SimpleDateFormat("MMMM yyyy", Locale.US) }
+    private val shortMonthFmt = ThreadLocal.withInitial { SimpleDateFormat("MMM yyyy", Locale.US) }
+    private val dateHeaderFmt = ThreadLocal.withInitial { SimpleDateFormat("EEE, MMM d, yyyy", Locale.US) }
+    private val shortDateFmt = ThreadLocal.withInitial { SimpleDateFormat("MMM d", Locale.US) }
+    private val isoDateFmt = ThreadLocal.withInitial { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
+    private val calLocal = ThreadLocal.withInitial { Calendar.getInstance() }
 
     fun formatMonthPeriod(period: MonthPeriod): String {
-        val cal = Calendar.getInstance().apply {
+        val cal = calLocal.get()!!.apply {
             set(Calendar.YEAR, period.year)
             set(Calendar.MONTH, period.month - 1)
             set(Calendar.DAY_OF_MONTH, 1)
         }
-        return monthYearFmt.format(cal.time)
+        return monthYearFmt.get()!!.format(cal.time)
     }
 
     fun formatShortMonth(period: MonthPeriod): String {
-        val cal = Calendar.getInstance().apply {
+        val cal = calLocal.get()!!.apply {
             set(Calendar.YEAR, period.year)
             set(Calendar.MONTH, period.month - 1)
             set(Calendar.DAY_OF_MONTH, 1)
         }
-        return shortMonthFmt.format(cal.time)
+        return shortMonthFmt.get()!!.format(cal.time)
     }
 
     fun formatDateGroupHeader(millis: Long): String {
-        return dateHeaderFmt.format(Date(millis))
+        return dateHeaderFmt.get()!!.format(Date(millis))
     }
 
     fun formatShortDate(millis: Long): String {
-        return shortDateFmt.format(Date(millis))
+        return shortDateFmt.get()!!.format(Date(millis))
     }
 
     fun formatIsoDate(millis: Long): String {
-        return isoDateFmt.format(Date(millis))
+        return isoDateFmt.get()!!.format(Date(millis))
     }
 
-    fun toDayKey(millis: Long): String = isoDateFmt.format(Date(millis))
+    fun toDayKey(millis: Long): String = isoDateFmt.get()!!.format(Date(millis))
 
     fun monthPeriodOf(millis: Long): MonthPeriod {
-        val cal = Calendar.getInstance().apply { timeInMillis = millis }
+        val cal = calLocal.get()!!.apply { timeInMillis = millis }
         return MonthPeriod(
             year = cal.get(Calendar.YEAR),
             month = cal.get(Calendar.MONTH) + 1,

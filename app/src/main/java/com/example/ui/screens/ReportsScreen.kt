@@ -1,18 +1,22 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
@@ -34,6 +38,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.VerticalDivider
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,11 +59,11 @@ import com.example.model.TransactionType
 import com.example.ui.components.CategoryChartSlice
 import com.example.ui.components.CategoryDonutChart
 import com.example.ui.components.EmptyLedgerState
+import com.example.ui.components.LedgerGroupCard
 import com.example.ui.components.MonthlyBarPoint
 import com.example.ui.components.MonthlyCashFlowBarChart
 import com.example.ui.theme.MoneyRowStyle
 import com.example.ui.theme.SpendlyTheme
-import com.example.ui.theme.SpendlyTokens
 import com.example.util.DateFormatters
 import com.example.util.MoneyFormatter
 import com.example.viewmodel.SpendlyUiState
@@ -128,18 +134,30 @@ fun ReportsScreen(
         (((totalIncome - totalExpenses).toDouble() / totalIncome.toDouble()) * 100.0).toInt()
     } else 0
 
-    // Harmonized Warm Editorial Chart Palette
-    val chartColors = listOf(
-        Color(0xFF0B4F3E), // Deep Forest Emerald
-        Color(0xFFC27803), // Warm Ochre Gold
-        Color(0xFF0E7490), // Deep Lagoon Teal
-        Color(0xFFC92A3E), // Editorial Crimson
-        Color(0xFF178962), // Fresh Sage
-        Color(0xFF6B46C1), // Plum
-        Color(0xFFEA580C), // Terracotta
-    )
+    // High-contrast, distinct Nordic editorial palette
+    val chartColors = if (semantic.isDark) {
+        listOf(
+            Color(0xFF4CC2A5),
+            Color(0xFF6AB3E8),
+            Color(0xFFF27C89),
+            Color(0xFFEBB04D),
+            Color(0xFFB4A7EB),
+            Color(0xFF67C9D6),
+            Color(0xFFF09A6A),
+        )
+    } else {
+        listOf(
+            Color(0xFF0F5C4D),
+            Color(0xFF1D5A8A),
+            Color(0xFFB42334),
+            Color(0xFF9A5B00),
+            Color(0xFF4F4698),
+            Color(0xFF156778),
+            Color(0xFFB54718),
+        )
+    }
 
-    val categorySlices = remember(periodTransactions, uiState.categories, baseCode) {
+    val categorySlices = remember(periodTransactions, uiState.categories, baseCode, chartColors) {
         periodTransactions
             .filter { it.type == TransactionType.EXPENSE }
             .groupBy { it.categoryId ?: "uncategorized" }
@@ -199,7 +217,7 @@ fun ReportsScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
-                title = { Text("Reports & Analytics") },
+                title = { Text("Reports & Analytics", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("reports_back")) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
@@ -222,17 +240,25 @@ fun ReportsScreen(
                             file.writeText(csv)
                             exportedFileSummary = "Created ${file.name} (${periodTransactions.size} rows, ${file.length()} bytes) in app cache."
                         },
-                        modifier = Modifier.padding(end = 12.dp).testTag("reports_export_button"),
-                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .minimumInteractiveComponentSize()
+                            .testTag("reports_export_button"),
+                        shape = RoundedCornerShape(999.dp),
                         color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 2.dp,
+                        border = BorderStroke(1.dp, semantic.surfaceBorder),
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(5.dp),
                         ) {
-                            Icon(Icons.Rounded.FileDownload, contentDescription = "Export report", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                            Icon(
+                                Icons.Rounded.FileDownload,
+                                contentDescription = "Export report",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
                             Text("Export", style = MaterialTheme.typography.labelLarge)
                         }
                     }
@@ -254,7 +280,6 @@ fun ReportsScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                // Period Selector
                 item {
                     val chipColors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
@@ -271,6 +296,7 @@ fun ReportsScreen(
                                 selected = uiState.reportPeriod == rp,
                                 onClick = { onSelectReportPeriod(rp) },
                                 label = { Text(rp.label) },
+                                shape = RoundedCornerShape(999.dp),
                                 colors = chipColors,
                                 modifier = Modifier.testTag("report_period_${rp.name.lowercase()}"),
                             )
@@ -278,80 +304,78 @@ fun ReportsScreen(
                     }
                 }
 
-                // KPI Summary Grid
+                // Clean Grouped 2x2 Summary Sheet
                 item {
-                    Surface(
-                        shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-                        color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 2.dp,
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                    LedgerGroupCard {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min),
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                ReportKpiTile(
-                                    label = "Income",
-                                    value = if (hide) "••••" else MoneyFormatter.formatMinor(totalIncome, baseCode),
-                                    color = semantic.income,
-                                    bg = semantic.incomeContainer.copy(alpha = 0.55f),
-                                    modifier = Modifier.weight(1f),
-                                )
-                                ReportKpiTile(
-                                    label = "Expenses",
-                                    value = if (hide) "••••" else MoneyFormatter.formatMinor(totalExpenses, baseCode),
-                                    color = semantic.expense,
-                                    bg = semantic.expenseContainer.copy(alpha = 0.55f),
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                ReportKpiTile(
-                                    label = "Net Flow",
-                                    value = if (hide) "••••" else MoneyFormatter.formatMinor(netCashFlow, baseCode, showPositivePlus = true),
-                                    color = if (netCashFlow >= 0) semantic.income else semantic.expense,
-                                    bg = MaterialTheme.colorScheme.surfaceContainerLow,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                ReportKpiTile(
-                                    label = "Savings Rate",
-                                    value = if (totalIncome > 0L) "$savingsRatePct%" else "—",
-                                    color = MaterialTheme.colorScheme.primary,
-                                    bg = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f),
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-
-                            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-
-                            val deltaText = if (prevPeriodExpenses > 0L) {
-                                val pct = (((totalExpenses - prevPeriodExpenses).toDouble() / prevPeriodExpenses.toDouble()) * 100.0).toInt()
-                                val dir = if (pct >= 0) "+$pct%" else "$pct%"
-                                "Spending vs ${DateFormatters.formatShortMonth(prevComparisonPeriod)}: $dir (${MoneyFormatter.formatMinor(prevPeriodExpenses, baseCode)})"
-                            } else {
-                                "No prior-period expense baseline available for comparison."
-                            }
-                            Text(
-                                text = deltaText,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ReportKpiCell(
+                                label = "Income",
+                                value = if (hide) "••••" else MoneyFormatter.formatMinor(totalIncome, baseCode),
+                                valueColor = semantic.income,
+                                modifier = Modifier.weight(1f),
+                            )
+                            VerticalDivider(
+                                modifier = Modifier.fillMaxHeight(),
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                            )
+                            ReportKpiCell(
+                                label = "Expenses",
+                                value = if (hide) "••••" else MoneyFormatter.formatMinor(totalExpenses, baseCode),
+                                valueColor = semantic.expense,
+                                modifier = Modifier.weight(1f),
                             )
                         }
+                        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min),
+                        ) {
+                            ReportKpiCell(
+                                label = "Net Flow",
+                                value = if (hide) "••••" else MoneyFormatter.formatMinor(netCashFlow, baseCode, showPositivePlus = true),
+                                valueColor = if (netCashFlow >= 0) semantic.income else semantic.expense,
+                                modifier = Modifier.weight(1f),
+                            )
+                            VerticalDivider(
+                                modifier = Modifier.fillMaxHeight(),
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                            )
+                            ReportKpiCell(
+                                label = "Savings Rate",
+                                value = if (totalIncome > 0L) "$savingsRatePct%" else "—",
+                                valueColor = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                        val deltaText = if (prevPeriodExpenses > 0L) {
+                            val pct = (((totalExpenses - prevPeriodExpenses).toDouble() / prevPeriodExpenses.toDouble()) * 100.0).toInt()
+                            val dir = if (pct >= 0) "+$pct%" else "$pct%"
+                            "Spending vs ${DateFormatters.formatShortMonth(prevComparisonPeriod)}: $dir (${MoneyFormatter.formatMinor(prevPeriodExpenses, baseCode)})"
+                        } else {
+                            "No prior-period expense baseline available for comparison."
+                        }
+                        Text(
+                            text = deltaText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        )
                     }
                 }
 
                 if (periodTransactions.isEmpty()) {
                     item {
                         EmptyLedgerState(
-                            title = "No analytical data for this period",
-                            subtitle = "Charts and category breakdowns automatically appear once you record transactions.",
+                            title = "No data for this period",
+                            subtitle = "Charts and category breakdowns appear once you record transactions.",
                             actionLabel = "Add Transaction",
                             onActionClick = onAddTransaction,
                         )
@@ -359,17 +383,13 @@ fun ReportsScreen(
                 } else {
                     if (categorySlices.isNotEmpty()) {
                         item {
-                            Surface(
-                                shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-                                color = MaterialTheme.colorScheme.surface,
-                                shadowElevation = 2.dp,
-                            ) {
+                            LedgerGroupCard {
                                 Column(
                                     modifier = Modifier.padding(18.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
-                                    Column {
-                                        Text("Category Breakdown", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text("Category Breakdown", style = MaterialTheme.typography.titleMedium)
                                         Text(
                                             "Tap any category to inspect matching transactions",
                                             style = MaterialTheme.typography.bodySmall,
@@ -387,16 +407,12 @@ fun ReportsScreen(
                     }
 
                     item {
-                        Surface(
-                            shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-                            color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 2.dp,
-                        ) {
+                        LedgerGroupCard {
                             Column(
                                 modifier = Modifier.padding(18.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                Text("3-Month Cash Flow Trend", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                                Text("3-Month Cash Flow", style = MaterialTheme.typography.titleMedium)
                                 MonthlyCashFlowBarChart(
                                     points = trendPoints,
                                     currencyCode = baseCode,
@@ -407,16 +423,12 @@ fun ReportsScreen(
 
                     if (accountSpendings.isNotEmpty()) {
                         item {
-                            Surface(
-                                shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-                                color = MaterialTheme.colorScheme.surface,
-                                shadowElevation = 2.dp,
-                            ) {
+                            LedgerGroupCard {
                                 Column(
                                     modifier = Modifier.padding(18.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
-                                    Text("Account-Level Spending", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                                    Text("Spending by Account", style = MaterialTheme.typography.titleMedium)
                                     val maxAccountSpend = accountSpendings.maxOf { it.second }.coerceAtLeast(1L)
                                     accountSpendings.forEach { (accName, spent) ->
                                         val ratio = (spent.toFloat() / maxAccountSpend.toFloat()).coerceIn(0f, 1f)
@@ -434,14 +446,14 @@ fun ReportsScreen(
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .height(7.dp)
+                                                    .height(6.dp)
                                                     .clip(RoundedCornerShape(999.dp))
-                                                    .background(MaterialTheme.colorScheme.surfaceContainer),
+                                                    .background(MaterialTheme.colorScheme.surfaceContainerLow),
                                             ) {
                                                 Box(
                                                     modifier = Modifier
                                                         .fillMaxWidth(ratio)
-                                                        .height(7.dp)
+                                                        .height(6.dp)
                                                         .clip(RoundedCornerShape(999.dp))
                                                         .background(MaterialTheme.colorScheme.primary),
                                                 )
@@ -455,16 +467,15 @@ fun ReportsScreen(
 
                     uiState.overallBudgetSummary?.let { bSum ->
                         item {
-                            Surface(
-                                shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-                                color = MaterialTheme.colorScheme.surface,
-                                shadowElevation = 2.dp,
-                            ) {
+                            LedgerGroupCard {
                                 Column(
                                     modifier = Modifier.padding(18.dp),
                                     verticalArrangement = Arrangement.spacedBy(6.dp),
                                 ) {
-                                    Text("Budget Performance (${DateFormatters.formatShortMonth(currentPeriod)})", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                                    Text(
+                                        text = "Budget Performance (${DateFormatters.formatShortMonth(currentPeriod)})",
+                                        style = MaterialTheme.typography.titleMedium,
+                                    )
                                     Text(
                                         text = "Used ${(bSum.progress * 100).toInt()}% of ${MoneyFormatter.formatMinor(bSum.budget.limitMinor, bSum.budget.currencyCode)} monthly limit.",
                                         style = MaterialTheme.typography.bodyMedium,
@@ -496,33 +507,29 @@ fun ReportsScreen(
 }
 
 @Composable
-private fun ReportKpiTile(
+private fun ReportKpiCell(
     label: String,
     value: String,
-    color: Color,
-    bg: Color,
+    valueColor: Color,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        color = bg,
+    Column(
+        modifier = modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            Text(
-                text = label.uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = color,
-            )
-        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontFeatureSettings = "tnum",
+            ),
+            color = valueColor,
+        )
     }
 }
 

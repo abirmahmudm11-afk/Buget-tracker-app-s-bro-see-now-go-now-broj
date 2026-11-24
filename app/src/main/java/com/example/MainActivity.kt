@@ -4,6 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -12,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -21,13 +28,20 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -37,8 +51,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.data.SpendlyRepository
 import com.example.model.TransactionRecord
 import com.example.model.TransactionType
+import com.example.notifications.SpendlyNotificationHelper
 import com.example.ui.components.SpendlyBottomNavigationBar
 import com.example.ui.components.SpendlySideNavigationRail
 import com.example.ui.components.SpendlyTopTab
@@ -46,6 +62,7 @@ import com.example.ui.screens.AccountDetailScreen
 import com.example.ui.screens.AccountsScreen
 import com.example.ui.screens.ActivityScreen
 import com.example.ui.screens.AddTransactionScreen
+import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.BudgetsScreen
 import com.example.ui.screens.CategoriesScreen
 import com.example.ui.screens.CurrencySettingsScreen
@@ -58,15 +75,62 @@ import com.example.ui.screens.SettingsDetailScreen
 import com.example.ui.screens.TransactionDetailSheet
 import com.example.ui.theme.SpendlyTheme
 import com.example.util.MoneyFormatter
+import com.example.viewmodel.SpendlyEvent
 import com.example.viewmodel.SpendlyViewModel
+import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.auth
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        SpendlyNotificationHelper.createChannels(this)
         setContent {
-            val spendlyViewModel: SpendlyViewModel = viewModel()
+            SpendlyRoot()
+        }
+    }
+}
+
+@Composable
+fun SpendlyRoot() {
+    val context = LocalContext.current
+    var currentUser by remember { mutableStateOf(Firebase.auth.currentUser) }
+
+    DisposableEffect(Unit) {
+        val listener = FirebaseAuth.AuthStateListener { auth ->
+            currentUser = auth.currentUser
+        }
+        Firebase.auth.addAuthStateListener(listener)
+        onDispose { Firebase.auth.removeAuthStateListener(listener) }
+    }
+
+    val user = currentUser
+    if (user == null) {
+        SpendlyTheme {
+            AuthScreen(
+                onAuthSuccess = { currentUser = Firebase.auth.currentUser },
+            )
+        }
+    } else {
+        val uid = user.uid
+        val displayName = user.displayName?.takeIf { it.isNotBlank() } ?: "Spendly User"
+        key(uid) {
+            val repository = remember(context, uid) { SpendlyRepository(context) }
+            val spendlyViewModel: SpendlyViewModel = viewModel(
+                key = uid,
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                        return SpendlyViewModel(
+                            repository = repository,
+                            currentUserId = uid,
+                            initialDisplayName = displayName,
+                        ) as T
+                    }
+                },
+            )
             SpendlyApp(viewModel = spendlyViewModel)
         }
     }
@@ -74,6 +138,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun SpendlyApp(viewModel: SpendlyViewModel) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -81,6 +146,35 @@ fun SpendlyApp(viewModel: SpendlyViewModel) {
 
     var inspectedTransaction by remember { mutableStateOf<TransactionRecord?>(null) }
     var pendingDeleteTransaction by remember { mutableStateOf<TransactionRecord?>(null) }
+
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is SpendlyEvent.BudgetAlert -> {
+                    val shown = SpendlyNotificationHelper.showBudgetAlertNotification(
+                        context = context,
+                        title = event.title,
+                        body = event.message,
+                        notificationId = event.notificationId,
+                    )
+                    if (!shown) {
+                        snackbarHostState.showSnackbar("${event.title}: ${event.message}")
+                    }
+                }
+                is SpendlyEvent.SnackbarMessage -> {
+                    snackbarHostState.showSnackbar(event.message)
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(uiState.syncError) {
+        val err = uiState.syncError
+        if (err != null) {
+            snackbarHostState.showSnackbar(err)
+            viewModel.clearSyncError()
+        }
+    }
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: SpendlyTopTab.HOME.route
@@ -123,7 +217,16 @@ fun SpendlyApp(viewModel: SpendlyViewModel) {
     }
 
     SpendlyTheme(themeMode = uiState.themeMode) {
-        if (!uiState.onboardingComplete) {
+        if (uiState.isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            }
+        } else if (!uiState.onboardingComplete) {
             OnboardingScreen(
                 initialCurrencyCode = uiState.defaultCurrencyCode,
                 initialLanguage = uiState.selectedLanguage,
@@ -143,7 +246,6 @@ fun SpendlyApp(viewModel: SpendlyViewModel) {
                             SpendlyBottomNavigationBar(
                                 currentRoute = currentRoute,
                                 onSelectTab = ::navigateTopTab,
-                                onAddClick = { openAddTransaction(TransactionType.EXPENSE) },
                             )
                         }
                     },
@@ -165,11 +267,46 @@ fun SpendlyApp(viewModel: SpendlyViewModel) {
                             NavHost(
                                 navController = navController,
                                 startDestination = SpendlyTopTab.HOME.route,
+                                enterTransition = {
+                                    val toTopTab = targetState.destination.route in topLevelRoutes
+                                    if (toTopTab) {
+                                        fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))
+                                    } else {
+                                        slideIntoContainer(
+                                            AnimatedContentTransitionScope.SlideDirection.Start,
+                                            animationSpec = tween(260, easing = FastOutSlowInEasing),
+                                        ) + fadeIn(animationSpec = tween(220))
+                                    }
+                                },
+                                exitTransition = {
+                                    val toTopTab = targetState.destination.route in topLevelRoutes
+                                    if (toTopTab) {
+                                        fadeOut(animationSpec = tween(180))
+                                    } else {
+                                        slideOutOfContainer(
+                                            AnimatedContentTransitionScope.SlideDirection.Start,
+                                            animationSpec = tween(260, easing = FastOutSlowInEasing),
+                                        ) + fadeOut(animationSpec = tween(180))
+                                    }
+                                },
+                                popEnterTransition = {
+                                    slideIntoContainer(
+                                        AnimatedContentTransitionScope.SlideDirection.End,
+                                        animationSpec = tween(260, easing = FastOutSlowInEasing),
+                                    ) + fadeIn(animationSpec = tween(220))
+                                },
+                                popExitTransition = {
+                                    slideOutOfContainer(
+                                        AnimatedContentTransitionScope.SlideDirection.End,
+                                        animationSpec = tween(260, easing = FastOutSlowInEasing),
+                                    ) + fadeOut(animationSpec = tween(180))
+                                },
                             ) {
                                 composable(SpendlyTopTab.HOME.route) {
                                     HomeScreen(
                                         uiState = uiState,
                                         onSelectPeriod = viewModel::setSelectedPeriod,
+                                        onSelectHomeFilter = viewModel::setHomeFilter,
                                         onToggleTheme = viewModel::setThemeMode,
                                         onTogglePrivacy = {
                                             viewModel.updateProfileAndPreferences(
@@ -180,6 +317,7 @@ fun SpendlyApp(viewModel: SpendlyViewModel) {
                                         onAddExpense = { openAddTransaction(TransactionType.EXPENSE) },
                                         onAddIncome = { openAddTransaction(TransactionType.INCOME) },
                                         onAddTransfer = { openAddTransaction(TransactionType.TRANSFER) },
+                                        onQuickLogExpense = viewModel::quickLogExpense,
                                         onViewAllTransactions = {
                                             viewModel.setActivityFilters(
                                                 period = uiState.selectedPeriod,
@@ -195,6 +333,16 @@ fun SpendlyApp(viewModel: SpendlyViewModel) {
                                         onOpenAccountDetail = { id -> navController.navigate("account_detail/$id") },
                                         onOpenBudgets = { navigateTopTab(SpendlyTopTab.BUDGETS) },
                                         onOpenTransactionDetail = { inspectedTransaction = it },
+                                        onOpenCategoryInActivity = { catId ->
+                                            viewModel.setActivityFilters(
+                                                period = uiState.selectedPeriod,
+                                                type = TransactionType.EXPENSE,
+                                                accountId = null,
+                                                categoryId = catId,
+                                                sortOption = uiState.activitySortOption,
+                                            )
+                                            navigateTopTab(SpendlyTopTab.ACTIVITY)
+                                        },
                                     )
                                 }
 
@@ -298,10 +446,13 @@ fun SpendlyApp(viewModel: SpendlyViewModel) {
                                         onNavigateBack = { navController.popBackStack() },
                                         onOpenAccountDetail = { id -> navController.navigate("account_detail/$id") },
                                         onSaveAccount = { existingId, name, type, inst, net, last4, curr, openMinor, limitMinor, desc ->
-                                            viewModel.saveAccount(existingId, name, type, inst, net, last4, curr, openMinor, limitMinor, desc)
+                                            val savedId = viewModel.saveAccount(
+                                                existingId, name, type, inst, net, last4, curr, openMinor, limitMinor, desc
+                                            )
                                             scope.launch {
                                                 snackbarHostState.showSnackbar("Account \"$name\" saved")
                                             }
+                                            savedId
                                         },
                                     )
                                 }
@@ -319,10 +470,13 @@ fun SpendlyApp(viewModel: SpendlyViewModel) {
                                             openAddTransaction(TransactionType.EXPENSE, accountId = id)
                                         },
                                         onSaveAccount = { existingId, name, type, inst, net, last4, curr, openMinor, limitMinor, desc ->
-                                            viewModel.saveAccount(existingId, name, type, inst, net, last4, curr, openMinor, limitMinor, desc)
+                                            val savedId = viewModel.saveAccount(
+                                                existingId, name, type, inst, net, last4, curr, openMinor, limitMinor, desc
+                                            )
                                             scope.launch {
                                                 snackbarHostState.showSnackbar("Account updated")
                                             }
+                                            savedId
                                         },
                                         onToggleArchive = { id ->
                                             viewModel.toggleArchiveAccount(id)
@@ -332,6 +486,7 @@ fun SpendlyApp(viewModel: SpendlyViewModel) {
                                         },
                                         onDeleteAccount = { id ->
                                             viewModel.deleteAccount(id)
+                                            com.example.util.CardArtStore.clearAllArt(context, id)
                                             scope.launch {
                                                 snackbarHostState.showSnackbar("Account deleted")
                                             }

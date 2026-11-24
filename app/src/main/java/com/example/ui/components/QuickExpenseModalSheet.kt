@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -121,32 +122,32 @@ fun QuickExpenseModalSheet(
                 Column {
                     Text(
                         text = "Log Expense",
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.headlineSmall,
                     )
                     Text(
-                        text = "Quickly record spending with amount, category & date",
+                        text = "Enter amount, category, date, and account",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.Rounded.Close, contentDescription = "Close modal")
+                    Icon(Icons.Rounded.Close, contentDescription = "Close")
                 }
             }
 
-            // Hero Amount Stage
             Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = semantic.expenseContainer.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(1.dp, if (amountError != null) MaterialTheme.colorScheme.error else semantic.surfaceBorder),
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Text(
-                        text = "AMOUNT (${currencySpec.code})",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = semantic.expense,
+                        text = "Amount (${currencySpec.code})",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     OutlinedTextField(
                         value = amountText,
@@ -158,7 +159,7 @@ fun QuickExpenseModalSheet(
                             Text(
                                 text = if (currencySpec.minorDecimals == 0) "0" else "0.00",
                                 style = MoneyInputStyle,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                             )
                         },
                         prefix = {
@@ -176,11 +177,11 @@ fun QuickExpenseModalSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("quick_expense_amount_input"),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                             focusedContainerColor = MaterialTheme.colorScheme.surface,
-                            unfocusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = semantic.surfaceBorder,
                             focusedBorderColor = semantic.expense,
                         ),
                     )
@@ -205,6 +206,7 @@ fun QuickExpenseModalSheet(
                                 },
                                 shape = RoundedCornerShape(999.dp),
                                 color = MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(1.dp, semantic.surfaceBorder),
                             ) {
                                 Text(
                                     text = "+${currencySpec.symbol}$addVal",
@@ -219,6 +221,7 @@ fun QuickExpenseModalSheet(
                                 onClick = { amountText = "" },
                                 shape = RoundedCornerShape(999.dp),
                                 color = MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(1.dp, semantic.surfaceBorder),
                             ) {
                                 Text(
                                     text = "Clear",
@@ -232,11 +235,10 @@ fun QuickExpenseModalSheet(
                 }
             }
 
-            // Category Selector
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "CATEGORY",
-                    style = MaterialTheme.typography.labelSmall,
+                    text = "Category",
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(
@@ -247,41 +249,41 @@ fun QuickExpenseModalSheet(
                 ) {
                     expenseCategories.forEach { cat ->
                         val selected = selectedCategoryId == cat.id
-                        val (catTint, catBg) = categoryColorPair(cat.iconKey)
+                        val (catTint, catBg) = categoryColorPair(cat.iconKey, semantic.isDark)
                         val containerColor by animateColorAsState(
-                            targetValue = if (selected) catTint else MaterialTheme.colorScheme.surfaceContainerLow,
+                            targetValue = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
                             label = "catChipBg",
                         )
                         Surface(
                             onClick = { selectedCategoryId = cat.id },
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(999.dp),
                             color = containerColor,
-                            border = if (selected) BorderStroke(1.dp, catTint) else null,
+                            border = if (selected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
                             modifier = Modifier.testTag("quick_expense_cat_${cat.id}"),
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(26.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(if (selected) Color.White.copy(alpha = 0.22f) else catBg),
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(catBg),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Icon(
                                         imageVector = categoryIconFor(cat.iconKey),
                                         contentDescription = null,
-                                        tint = if (selected) Color.White else catTint,
-                                        modifier = Modifier.size(15.dp),
+                                        tint = catTint,
+                                        modifier = Modifier.size(14.dp),
                                     )
                                 }
                                 Text(
                                     text = cat.name,
                                     style = MaterialTheme.typography.labelLarge,
-                                    color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface,
+                                    color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                                 )
                             }
                         }
@@ -289,7 +291,6 @@ fun QuickExpenseModalSheet(
                 }
             }
 
-            // Date & Account Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -299,7 +300,7 @@ fun QuickExpenseModalSheet(
                     modifier = Modifier
                         .weight(1f)
                         .testTag("quick_expense_date_button"),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                 ) {
                     Row(
@@ -333,7 +334,7 @@ fun QuickExpenseModalSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("quick_expense_account_button"),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
                     ) {
                         Row(
@@ -386,20 +387,20 @@ fun QuickExpenseModalSheet(
             OutlinedTextField(
                 value = noteText,
                 onValueChange = { noteText = it },
-                label = { Text("Note / Merchant (optional)") },
-                placeholder = { Text("e.g. Trader Joe's, Lunch...") },
+                label = { Text("Merchant or note (optional)") },
+                placeholder = { Text("e.g., Trader Joe's, Lunch") },
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("quick_expense_note_input"),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
             )
 
             Button(
                 onClick = {
                     val minor = MoneyFormatter.parseMajorToMinor(amountText, currencyCode)
                     if (amountText.isBlank() || minor == null || minor <= 0L) {
-                        amountError = "Enter a valid amount greater than zero"
+                        amountError = "Enter an amount greater than zero"
                     } else {
                         onSaveExpense(minor, selectedCategoryId, dateMillis, selectedAccountId, noteText)
                         onDismiss()
@@ -411,15 +412,15 @@ fun QuickExpenseModalSheet(
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(54.dp)
+                    .height(52.dp)
                     .testTag("quick_expense_save_button"),
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(14.dp),
             ) {
-                Icon(Icons.Rounded.Check, contentDescription = null)
+                Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = "Save Expense",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleMedium,
                 )
             }
         }

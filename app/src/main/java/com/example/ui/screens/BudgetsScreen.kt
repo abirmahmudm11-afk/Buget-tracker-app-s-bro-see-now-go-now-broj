@@ -105,7 +105,7 @@ fun BudgetsScreen(
                 .widthIn(max = 860.dp)
                 .fillMaxSize()
                 .testTag("budgets_list"),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 36.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
@@ -114,29 +114,21 @@ fun BudgetsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column {
-                        Text("Budgets", style = MaterialTheme.typography.headlineMedium)
-                        Text(
-                            text = "Monthly limits without double-counting repayments",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Surface(
+                    Text("Budgets", style = MaterialTheme.typography.headlineMedium)
+                    OutlinedButton(
                         onClick = { showHistoryDialog = true },
                         modifier = Modifier.testTag("budget_history_button"),
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 2.dp,
+                        shape = RoundedCornerShape(999.dp),
+                        border = BorderStroke(1.dp, semantic.surfaceBorder),
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Icon(Icons.Rounded.History, contentDescription = "Budget history", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                            Text("History", style = MaterialTheme.typography.labelLarge)
-                        }
+                        Icon(
+                            Icons.Rounded.History,
+                            contentDescription = "Budget history",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(Modifier.padding(3.dp))
+                        Text("History")
                     }
                 }
             }
@@ -158,7 +150,7 @@ fun BudgetsScreen(
                             showBudgetForm = true
                         },
                         modifier = Modifier.testTag("add_budget_button"),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
                     ) {
                         Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.padding(3.dp))
@@ -167,11 +159,10 @@ fun BudgetsScreen(
                 }
             }
 
-            // Overall Monthly Budget Ring Hero Card
             item {
                 Text(
                     text = "Overall Monthly Budget",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleMedium,
                 )
             }
 
@@ -191,23 +182,23 @@ fun BudgetsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("budget_card_${overall.budget.id}"),
-                        shape = RoundedCornerShape(SpendlyTokens.HeroRadius),
+                        shape = RoundedCornerShape(SpendlyTokens.CardRadius),
                         color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 3.dp,
+                        border = BorderStroke(1.dp, semantic.surfaceBorder),
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(20.dp),
+                                .padding(18.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(18.dp),
                         ) {
                             BudgetRingGauge(
                                 progress = overall.progress,
                                 ringColor = ringColor,
-                                trackColor = MaterialTheme.colorScheme.surfaceContainer,
+                                trackColor = MaterialTheme.colorScheme.surfaceContainerLow,
                                 centerValue = "${(overall.progress * 100).toInt()}%",
-                                centerLabel = if (overall.isOverspent) "OVER" else "USED",
+                                centerLabel = if (overall.isOverspent) "Over" else "Used",
                             )
                             Column(
                                 modifier = Modifier.weight(1f),
@@ -220,7 +211,7 @@ fun BudgetsScreen(
                                 ) {
                                     Text(
                                         text = DateFormatters.formatMonthPeriod(uiState.selectedPeriod),
-                                        style = MaterialTheme.typography.labelSmall,
+                                        style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                     Icon(
@@ -252,7 +243,7 @@ fun BudgetsScreen(
                 item {
                     EmptyLedgerState(
                         title = "No overall budget for ${DateFormatters.formatShortMonth(uiState.selectedPeriod)}",
-                        subtitle = "Spendly never fakes 0% progress for missing budgets. Create a monthly spending target when you're ready.",
+                        subtitle = "Create a monthly spending limit to track remaining headroom and get threshold alerts.",
                         actionLabel = "Create Monthly Budget",
                         onActionClick = {
                             editingBudget = null
@@ -263,7 +254,6 @@ fun BudgetsScreen(
                 }
             }
 
-            // Category Budgets
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -272,7 +262,7 @@ fun BudgetsScreen(
                 ) {
                     Text(
                         text = "Category Budgets (${categorySummaries.size})",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleMedium,
                     )
                     TextButton(
                         onClick = {
@@ -281,7 +271,7 @@ fun BudgetsScreen(
                             showBudgetForm = true
                         },
                     ) {
-                        Text("+ Category Limit")
+                        Text("+ Add limit")
                     }
                 }
             }
@@ -291,7 +281,7 @@ fun BudgetsScreen(
                     Surface(
                         shape = RoundedCornerShape(SpendlyTokens.CardRadius),
                         color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 2.dp,
+                        border = BorderStroke(1.dp, semantic.surfaceBorder),
                     ) {
                         Column(
                             modifier = Modifier.fillMaxWidth().padding(20.dp),
@@ -299,7 +289,7 @@ fun BudgetsScreen(
                         ) {
                             Text("No category budgets set", style = MaterialTheme.typography.titleSmall)
                             Text(
-                                "Set limits for Dining, Groceries, or Shopping to receive proactive threshold alerts.",
+                                "Set limits for Dining, Groceries, or Shopping to get notified before you overspend.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -388,9 +378,9 @@ fun BudgetsScreen(
                             selectedSummaryForBreakdown = null
                             showBudgetForm = true
                         },
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(999.dp),
                     ) {
-                        Text("Edit Limit")
+                        Text("Edit limit")
                     }
                 }
 
@@ -422,7 +412,7 @@ fun BudgetsScreen(
                             )
                             if (idx < catTx.lastIndex) {
                                 HorizontalDivider(
-                                    modifier = Modifier.padding(start = 72.dp, end = 16.dp),
+                                    modifier = Modifier.padding(start = 68.dp, end = 16.dp),
                                     thickness = 0.5.dp,
                                     color = MaterialTheme.colorScheme.outlineVariant,
                                 )
@@ -451,7 +441,7 @@ fun BudgetsScreen(
                                     onSelectPeriod(period)
                                     showHistoryDialog = false
                                 },
-                                shape = RoundedCornerShape(14.dp),
+                                shape = RoundedCornerShape(12.dp),
                                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                             ) {
                                 Row(
@@ -534,21 +524,29 @@ private fun BudgetFormSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BudgetScope.entries.forEach { s ->
-                    val active = scope == s
-                    Surface(
-                        onClick = { scope = s },
-                        modifier = Modifier.weight(1f).height(44.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerLow,
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = s.label,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    BudgetScope.entries.forEach { s ->
+                        val active = scope == s
+                        Surface(
+                            onClick = { scope = s },
+                            modifier = Modifier.weight(1f).height(40.dp),
+                            shape = RoundedCornerShape(999.dp),
+                            color = if (active) MaterialTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent,
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = s.label,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }
@@ -564,12 +562,12 @@ private fun BudgetFormSheet(
                         value = selectedCat?.name ?: "Select category",
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Expense Category") },
+                        label = { Text("Expense category") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = catMenuExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .menuAnchor(MenuAnchorType.PrimaryNotEditable),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
                     )
                     ExposedDropdownMenu(
                         expanded = catMenuExpanded,
@@ -594,21 +592,21 @@ private fun BudgetFormSheet(
                     limitText = it
                     limitError = null
                 },
-                label = { Text("Spending Limit (${uiState.defaultCurrencyCode}) *") },
+                label = { Text("Spending limit (${uiState.defaultCurrencyCode}) *") },
                 placeholder = { Text("e.g., 500.00") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth().testTag("budget_limit_input"),
                 isError = limitError != null,
                 supportingText = limitError?.let { err -> { Text(err) } },
                 singleLine = true,
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(12.dp),
             )
 
             Button(
                 onClick = {
                     val minor = MoneyFormatter.parseMajorToMinor(limitText, uiState.defaultCurrencyCode)
                     if (minor == null || minor <= 0L) {
-                        limitError = "Enter a valid limit greater than zero"
+                        limitError = "Enter a limit greater than zero"
                     } else {
                         val name = if (scope == BudgetScope.OVERALL) {
                             "${DateFormatters.formatShortMonth(uiState.selectedPeriod)} Overall Budget"
@@ -620,9 +618,9 @@ private fun BudgetFormSheet(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp)
+                    .height(50.dp)
                     .testTag("save_budget_button"),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
             ) {
                 Text(if (editingBudget != null) "Update Budget" else "Save Budget")
             }
@@ -631,7 +629,7 @@ private fun BudgetFormSheet(
                 OutlinedButton(
                     onClick = onDelete,
                     modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 ) {

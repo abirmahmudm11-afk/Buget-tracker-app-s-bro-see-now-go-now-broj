@@ -17,11 +17,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowDownward
-import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
@@ -36,6 +34,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,6 +47,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,8 +55,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -65,9 +64,11 @@ import com.example.model.TransactionRecord
 import com.example.model.TransactionType
 import com.example.ui.components.EmptyLedgerState
 import com.example.ui.components.LedgerGroupCard
-import com.example.ui.components.TransactionLedgerRow
+import com.example.ui.components.groupedTransactionItems
 import com.example.ui.theme.MoneyHeroStyle
+import com.example.ui.theme.MoneyRowStyle
 import com.example.ui.theme.SpendlyTheme
+import com.example.ui.theme.SpendlyTokens
 import com.example.util.ConversionResult
 import com.example.util.DateFormatters
 import com.example.util.MoneyFormatter
@@ -148,7 +149,7 @@ fun ActivityScreen(
         if (uiState.activitySortOption == SortOption.NEWEST || uiState.activitySortOption == SortOption.OLDEST) {
             filtered.groupBy { DateFormatters.formatDateGroupHeader(it.dateMillis) }
         } else {
-            mapOf("Sorted Results (${filtered.size})" to filtered)
+            mapOf("Sorted results (${filtered.size})" to filtered)
         }
     }
 
@@ -158,113 +159,78 @@ fun ActivityScreen(
         uiState.activityFilterCategoryId != null ||
         uiState.activitySearchQuery.isNotBlank()
 
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-        LazyColumn(
-            modifier = Modifier
-                .widthIn(max = 860.dp)
-                .fillMaxSize()
-                .testTag("activity_list"),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column {
-                        Text("Activity", style = MaterialTheme.typography.headlineMedium)
-                        Text(
-                            text = "${filtered.size} matching entry${if (filtered.size == 1) "" else "s"}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    if (hasActiveFilter) {
-                        TextButton(
-                            onClick = onClearFilters,
-                            modifier = Modifier.testTag("activity_clear_filters"),
-                        ) {
-                            Text("Reset All")
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+            LazyColumn(
+                modifier = Modifier
+                    .widthIn(max = 860.dp)
+                    .fillMaxSize()
+                    .testTag("activity_list"),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 92.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                item(key = "activity_header") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column {
+                            Text("Activity", style = MaterialTheme.typography.headlineMedium)
+                            Text(
+                                text = "${filtered.size} ${if (filtered.size == 1) "entry" else "entries"}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (hasActiveFilter) {
+                            TextButton(
+                                onClick = onClearFilters,
+                                modifier = Modifier.testTag("activity_clear_filters"),
+                            ) {
+                                Text("Reset all")
+                            }
                         }
                     }
                 }
-            }
 
-            // Filtered Cash Flow Summary Strip
-            if (filtered.isNotEmpty()) {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Surface(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 1.dp,
-                        ) {
+                if (filtered.isNotEmpty()) {
+                    item(key = "activity_summary_strip") {
+                        LedgerGroupCard {
                             Row(
-                                modifier = Modifier.padding(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
-                                Box(
+                                Column(
                                     modifier = Modifier
-                                        .size(30.dp)
-                                        .clip(CircleShape)
-                                        .background(semantic.incomeContainer),
-                                    contentAlignment = Alignment.Center,
+                                        .weight(1f)
+                                        .padding(horizontal = 16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp),
                                 ) {
-                                    Icon(
-                                        Icons.Rounded.ArrowDownward,
-                                        contentDescription = null,
-                                        tint = semantic.income,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                }
-                                Column {
-                                    Text("INFLOW", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Inflow", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text(
                                         text = if (hide) "••••" else MoneyFormatter.formatMinor(filteredIncomeBase, baseCode),
-                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        style = MoneyRowStyle,
                                         color = semantic.income,
                                     )
                                 }
-                            }
-                        }
-
-                        Surface(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 1.dp,
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                Box(
+                                VerticalDivider(
+                                    modifier = Modifier.height(34.dp),
+                                    thickness = 0.5.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                )
+                                Column(
                                     modifier = Modifier
-                                        .size(30.dp)
-                                        .clip(CircleShape)
-                                        .background(semantic.expenseContainer),
-                                    contentAlignment = Alignment.Center,
+                                        .weight(1f)
+                                        .padding(horizontal = 16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp),
                                 ) {
-                                    Icon(
-                                        Icons.Rounded.ArrowUpward,
-                                        contentDescription = null,
-                                        tint = semantic.expense,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                }
-                                Column {
-                                    Text("OUTFLOW", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Outflow", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text(
                                         text = if (hide) "••••" else MoneyFormatter.formatMinor(filteredExpenseBase, baseCode),
-                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        style = MoneyRowStyle,
                                         color = semantic.expense,
                                     )
                                 }
@@ -272,27 +238,20 @@ fun ActivityScreen(
                         }
                     }
                 }
-            }
 
-            // Elevated Tonal Search Pill
-            item {
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 2.dp,
-                ) {
+                item(key = "activity_search") {
                     OutlinedTextField(
                         value = uiState.activitySearchQuery,
                         onValueChange = onSearchChange,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("activity_search_input"),
-                        placeholder = { Text("Search merchant, note, category...") },
+                        placeholder = { Text("Search merchant, note, or category") },
                         leadingIcon = {
                             Icon(
                                 Icons.Rounded.Search,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         },
                         trailingIcon = {
@@ -303,220 +262,210 @@ fun ActivityScreen(
                             }
                         },
                         singleLine = true,
-                        shape = RoundedCornerShape(18.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                             focusedContainerColor = MaterialTheme.colorScheme.surface,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                            unfocusedBorderColor = semantic.surfaceBorder,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
                         ),
                     )
                 }
-            }
 
-            // Filter & Sort Chips
-            item {
-                val chipColors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box {
-                        FilterChip(
-                            selected = uiState.activityFilterPeriod != null,
-                            onClick = { showMonthMenu = true },
-                            label = {
-                                Text(
-                                    uiState.activityFilterPeriod?.let { DateFormatters.formatShortMonth(it) }
-                                        ?: "All Months"
-                                )
-                            },
-                            leadingIcon = { Icon(Icons.Rounded.FilterList, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                            colors = chipColors,
-                            modifier = Modifier.testTag("filter_month_chip"),
-                        )
-                        DropdownMenu(expanded = showMonthMenu, onDismissRequest = { showMonthMenu = false }) {
-                            DropdownMenuItem(
-                                text = { Text("All Months") },
-                                onClick = {
-                                    onUpdateFilters(null, uiState.activityFilterType, uiState.activityFilterAccountId, uiState.activityFilterCategoryId, uiState.activitySortOption)
-                                    showMonthMenu = false
+                item(key = "activity_filter_chips") {
+                    val chipColors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box {
+                            FilterChip(
+                                selected = uiState.activityFilterPeriod != null,
+                                onClick = { showMonthMenu = true },
+                                label = {
+                                    Text(
+                                        uiState.activityFilterPeriod?.let { DateFormatters.formatShortMonth(it) }
+                                            ?: "All Months"
+                                    )
                                 },
+                                leadingIcon = { Icon(Icons.Rounded.FilterList, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                shape = RoundedCornerShape(999.dp),
+                                colors = chipColors,
+                                modifier = Modifier.testTag("filter_month_chip"),
                             )
-                            uiState.availablePeriods.forEach { p ->
+                            DropdownMenu(expanded = showMonthMenu, onDismissRequest = { showMonthMenu = false }) {
                                 DropdownMenuItem(
-                                    text = { Text(DateFormatters.formatMonthPeriod(p)) },
+                                    text = { Text("All Months") },
                                     onClick = {
-                                        onUpdateFilters(p, uiState.activityFilterType, uiState.activityFilterAccountId, uiState.activityFilterCategoryId, uiState.activitySortOption)
+                                        onUpdateFilters(null, uiState.activityFilterType, uiState.activityFilterAccountId, uiState.activityFilterCategoryId, uiState.activitySortOption)
                                         showMonthMenu = false
                                     },
                                 )
+                                uiState.availablePeriods.forEach { p ->
+                                    DropdownMenuItem(
+                                        text = { Text(DateFormatters.formatMonthPeriod(p)) },
+                                        onClick = {
+                                            onUpdateFilters(p, uiState.activityFilterType, uiState.activityFilterAccountId, uiState.activityFilterCategoryId, uiState.activitySortOption)
+                                            showMonthMenu = false
+                                        },
+                                    )
+                                }
                             }
                         }
-                    }
 
-                    TransactionType.entries.forEach { type ->
-                        val active = uiState.activityFilterType == type
-                        FilterChip(
-                            selected = active,
-                            onClick = {
-                                onUpdateFilters(
-                                    uiState.activityFilterPeriod,
-                                    if (active) null else type,
-                                    uiState.activityFilterAccountId,
-                                    uiState.activityFilterCategoryId,
-                                    uiState.activitySortOption,
-                                )
-                            },
-                            label = { Text(type.label) },
-                            colors = chipColors,
-                            modifier = Modifier.testTag("filter_type_${type.name.lowercase()}"),
-                        )
-                    }
-
-                    Box {
-                        val selectedAcc = uiState.activityFilterAccountId?.let { uiState.accountById(it) }
-                        FilterChip(
-                            selected = selectedAcc != null,
-                            onClick = { showAccountMenu = true },
-                            label = { Text(selectedAcc?.name ?: "Account") },
-                            colors = chipColors,
-                            modifier = Modifier.testTag("filter_account_chip"),
-                        )
-                        DropdownMenu(expanded = showAccountMenu, onDismissRequest = { showAccountMenu = false }) {
-                            DropdownMenuItem(
-                                text = { Text("All Accounts") },
+                        TransactionType.entries.forEach { type ->
+                            val active = uiState.activityFilterType == type
+                            FilterChip(
+                                selected = active,
                                 onClick = {
-                                    onUpdateFilters(uiState.activityFilterPeriod, uiState.activityFilterType, null, uiState.activityFilterCategoryId, uiState.activitySortOption)
-                                    showAccountMenu = false
+                                    onUpdateFilters(
+                                        uiState.activityFilterPeriod,
+                                        if (active) null else type,
+                                        uiState.activityFilterAccountId,
+                                        uiState.activityFilterCategoryId,
+                                        uiState.activitySortOption,
+                                    )
                                 },
+                                label = { Text(type.label) },
+                                shape = RoundedCornerShape(999.dp),
+                                colors = chipColors,
+                                modifier = Modifier.testTag("filter_type_${type.name.lowercase()}"),
                             )
-                            uiState.accounts.forEach { acc ->
+                        }
+
+                        Box {
+                            val selectedAcc = uiState.activityFilterAccountId?.let { uiState.accountById(it) }
+                            FilterChip(
+                                selected = selectedAcc != null,
+                                onClick = { showAccountMenu = true },
+                                label = { Text(selectedAcc?.name ?: "Account") },
+                                shape = RoundedCornerShape(999.dp),
+                                colors = chipColors,
+                                modifier = Modifier.testTag("filter_account_chip"),
+                            )
+                            DropdownMenu(expanded = showAccountMenu, onDismissRequest = { showAccountMenu = false }) {
                                 DropdownMenuItem(
-                                    text = { Text(acc.name) },
+                                    text = { Text("All Accounts") },
                                     onClick = {
-                                        onUpdateFilters(uiState.activityFilterPeriod, uiState.activityFilterType, acc.id, uiState.activityFilterCategoryId, uiState.activitySortOption)
+                                        onUpdateFilters(uiState.activityFilterPeriod, uiState.activityFilterType, null, uiState.activityFilterCategoryId, uiState.activitySortOption)
                                         showAccountMenu = false
                                     },
                                 )
+                                uiState.accounts.forEach { acc ->
+                                    DropdownMenuItem(
+                                        text = { Text(acc.name) },
+                                        onClick = {
+                                            onUpdateFilters(uiState.activityFilterPeriod, uiState.activityFilterType, acc.id, uiState.activityFilterCategoryId, uiState.activitySortOption)
+                                            showAccountMenu = false
+                                        },
+                                    )
+                                }
                             }
                         }
-                    }
 
-                    Box {
-                        val selectedCat = uiState.categoryById(uiState.activityFilterCategoryId)
-                        FilterChip(
-                            selected = selectedCat != null,
-                            onClick = { showCategoryMenu = true },
-                            label = { Text(selectedCat?.name ?: "Category") },
-                            colors = chipColors,
-                            modifier = Modifier.testTag("filter_category_chip"),
-                        )
-                        DropdownMenu(expanded = showCategoryMenu, onDismissRequest = { showCategoryMenu = false }) {
-                            DropdownMenuItem(
-                                text = { Text("All Categories") },
-                                onClick = {
-                                    onUpdateFilters(uiState.activityFilterPeriod, uiState.activityFilterType, uiState.activityFilterAccountId, null, uiState.activitySortOption)
-                                    showCategoryMenu = false
-                                },
+                        Box {
+                            val selectedCat = uiState.categoryById(uiState.activityFilterCategoryId)
+                            FilterChip(
+                                selected = selectedCat != null,
+                                onClick = { showCategoryMenu = true },
+                                label = { Text(selectedCat?.name ?: "Category") },
+                                shape = RoundedCornerShape(999.dp),
+                                colors = chipColors,
+                                modifier = Modifier.testTag("filter_category_chip"),
                             )
-                            uiState.categories.forEach { cat ->
+                            DropdownMenu(expanded = showCategoryMenu, onDismissRequest = { showCategoryMenu = false }) {
                                 DropdownMenuItem(
-                                    text = { Text(cat.name) },
+                                    text = { Text("All Categories") },
                                     onClick = {
-                                        onUpdateFilters(uiState.activityFilterPeriod, uiState.activityFilterType, uiState.activityFilterAccountId, cat.id, uiState.activitySortOption)
+                                        onUpdateFilters(uiState.activityFilterPeriod, uiState.activityFilterType, uiState.activityFilterAccountId, null, uiState.activitySortOption)
                                         showCategoryMenu = false
                                     },
                                 )
-                            }
-                        }
-                    }
-
-                    Box {
-                        FilterChip(
-                            selected = uiState.activitySortOption != SortOption.NEWEST,
-                            onClick = { showSortMenu = true },
-                            label = { Text("Sort: ${uiState.activitySortOption.label}") },
-                            leadingIcon = { Icon(Icons.Rounded.SwapVert, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                            colors = chipColors,
-                            modifier = Modifier.testTag("filter_sort_chip"),
-                        )
-                        DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
-                            SortOption.entries.forEach { opt ->
-                                DropdownMenuItem(
-                                    text = { Text(opt.label) },
-                                    onClick = {
-                                        onUpdateFilters(uiState.activityFilterPeriod, uiState.activityFilterType, uiState.activityFilterAccountId, uiState.activityFilterCategoryId, opt)
-                                        showSortMenu = false
-                                    },
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (filtered.isEmpty()) {
-                item {
-                    EmptyLedgerState(
-                        title = if (hasActiveFilter) "No matching transactions" else "Your activity ledger is empty",
-                        subtitle = if (hasActiveFilter) {
-                            "Try clearing one or more filters or broadening your search query."
-                        } else {
-                            "Record an expense, income, or transfer to begin tracking cash flow."
-                        },
-                        actionLabel = if (hasActiveFilter) "Clear Filters" else "Add Transaction",
-                        onActionClick = { if (hasActiveFilter) onClearFilters() else onAddTransaction() },
-                    )
-                }
-            } else {
-                groupedByDate.forEach { (header, groupItems) ->
-                    item(key = "hdr_$header") {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = header.uppercase(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(start = 4.dp, top = 4.dp),
-                            )
-                            LedgerGroupCard {
-                                groupItems.forEachIndexed { idx, tx ->
-                                    val accName = uiState.accountById(tx.accountId)?.name ?: "Account"
-                                    val destName = tx.destinationAccountId?.let { uiState.accountById(it)?.name }
-                                    val cat = uiState.categoryById(tx.categoryId)
-                                    TransactionLedgerRow(
-                                        transaction = tx,
-                                        category = cat,
-                                        accountName = accName,
-                                        destinationAccountName = destName,
-                                        defaultCurrencyCode = baseCode,
-                                        convertedBaseMinor = uiState.convertToBase(tx.amountMinor, tx.currencyCode),
-                                        hideBalances = hide,
-                                        onClick = { selectedTxForDetail = tx },
-                                        grouped = true,
+                                uiState.categories.forEach { cat ->
+                                    DropdownMenuItem(
+                                        text = { Text(cat.name) },
+                                        onClick = {
+                                            onUpdateFilters(uiState.activityFilterPeriod, uiState.activityFilterType, uiState.activityFilterAccountId, cat.id, uiState.activitySortOption)
+                                            showCategoryMenu = false
+                                        },
                                     )
-                                    if (idx < groupItems.lastIndex) {
-                                        HorizontalDivider(
-                                            modifier = Modifier.padding(start = 72.dp, end = 16.dp),
-                                            thickness = 0.5.dp,
-                                            color = MaterialTheme.colorScheme.outlineVariant,
-                                        )
-                                    }
+                                }
+                            }
+                        }
+
+                        Box {
+                            FilterChip(
+                                selected = uiState.activitySortOption != SortOption.NEWEST,
+                                onClick = { showSortMenu = true },
+                                label = { Text("Sort: ${uiState.activitySortOption.label}") },
+                                leadingIcon = { Icon(Icons.Rounded.SwapVert, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                shape = RoundedCornerShape(999.dp),
+                                colors = chipColors,
+                                modifier = Modifier.testTag("filter_sort_chip"),
+                            )
+                            DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
+                                SortOption.entries.forEach { opt ->
+                                    DropdownMenuItem(
+                                        text = { Text(opt.label) },
+                                        onClick = {
+                                            onUpdateFilters(uiState.activityFilterPeriod, uiState.activityFilterType, uiState.activityFilterAccountId, uiState.activityFilterCategoryId, opt)
+                                            showSortMenu = false
+                                        },
+                                    )
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            item { Spacer(Modifier.height(16.dp)) }
+                if (filtered.isEmpty()) {
+                    item(key = "activity_empty") {
+                        EmptyLedgerState(
+                            title = if (hasActiveFilter) "No matching transactions" else "No activity recorded yet",
+                            subtitle = if (hasActiveFilter) {
+                                "Try clearing filters or broadening your search term."
+                            } else {
+                                "Record an expense, income, or transfer to track cash flow."
+                            },
+                            actionLabel = if (hasActiveFilter) "Clear Filters" else "Add Transaction",
+                            onActionClick = { if (hasActiveFilter) onClearFilters() else onAddTransaction() },
+                        )
+                    }
+                } else {
+                    groupedTransactionItems(
+                        groupedByDate = groupedByDate,
+                        categoryLookup = uiState::categoryById,
+                        accountLookup = uiState::accountById,
+                        defaultCurrencyCode = baseCode,
+                        convertToBase = uiState::convertToBase,
+                        hideBalances = hide,
+                        onTransactionClick = { selectedTxForDetail = it },
+                    )
+                }
+
+                item(key = "activity_bottom_spacer") { Spacer(Modifier.height(16.dp)) }
+            }
+        }
+
+        FloatingActionButton(
+            onClick = onAddTransaction,
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            shape = RoundedCornerShape(16.dp),
+            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 3.dp),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 14.dp)
+                .testTag("nav_add_button"),
+        ) {
+            Icon(Icons.Rounded.Add, contentDescription = "Add transaction")
         }
     }
 
@@ -542,7 +491,7 @@ fun ActivityScreen(
             title = { Text("Delete Transaction?") },
             text = {
                 Text(
-                    "Remove \"${tx.description}\" (${MoneyFormatter.formatMinor(tx.amountMinor, tx.currencyCode)})? Account balances and budgets will recalculate immediately."
+                    "Remove \"${tx.description}\" (${MoneyFormatter.formatMinor(tx.amountMinor, tx.currencyCode)})? Account balances and budgets recalculate immediately."
                 )
             },
             confirmButton = {
@@ -602,8 +551,8 @@ fun TransactionDetailSheet(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = typeBg.copy(alpha = 0.6f),
+                shape = RoundedCornerShape(SpendlyTokens.CardRadius),
+                color = typeBg.copy(alpha = 0.55f),
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(18.dp),
@@ -614,17 +563,11 @@ fun TransactionDetailSheet(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(999.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                        ) {
-                            Text(
-                                text = transaction.type.label.uppercase(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = typeTint,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            )
-                        }
+                        Text(
+                            text = transaction.type.label,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = typeTint,
+                        )
                         Text(
                             text = DateFormatters.formatDateGroupHeader(transaction.dateMillis),
                             style = MaterialTheme.typography.bodySmall,
@@ -639,7 +582,7 @@ fun TransactionDetailSheet(
                     if (transaction.currencyCode != uiState.defaultCurrencyCode) {
                         val convText = when (conversion) {
                             is ConversionResult.Available ->
-                                "≈ ${MoneyFormatter.formatMinor(conversion.convertedMinor, conversion.baseCurrencyCode)} (1 ${transaction.currencyCode} = ${conversion.rateText} ${conversion.baseCurrencyCode} • ${conversion.source})"
+                                "≈ ${MoneyFormatter.formatMinor(conversion.convertedMinor, conversion.baseCurrencyCode)} (1 ${transaction.currencyCode} = ${conversion.rateText} ${conversion.baseCurrencyCode})"
                             is ConversionResult.Unavailable -> conversion.reason
                         }
                         Text(
@@ -652,7 +595,7 @@ fun TransactionDetailSheet(
             }
 
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(SpendlyTokens.CardRadius),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
             ) {
                 Column(
@@ -661,19 +604,25 @@ fun TransactionDetailSheet(
                 ) {
                     DetailKeyValue("Description", transaction.description.ifBlank { "—" })
                     if (transaction.merchant.isNotBlank()) {
+                        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
                         DetailKeyValue("Merchant", transaction.merchant)
                     }
+                    HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
                     if (transaction.type == TransactionType.TRANSFER) {
-                        DetailKeyValue("From Account", acc?.name ?: "Account")
-                        DetailKeyValue("To Account", dest?.name ?: "Account")
+                        DetailKeyValue("From account", acc?.name ?: "Account")
+                        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                        DetailKeyValue("To account", dest?.name ?: "Account")
                         if (transaction.isCreditCardRepayment) {
-                            DetailKeyValue("Accounting", "Credit card repayment (excluded from shopping spend)")
+                            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                            DetailKeyValue("Accounting", "Credit card repayment (excluded from spend)")
                         }
                     } else {
                         DetailKeyValue("Category", cat?.name ?: "Uncategorized")
+                        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
                         DetailKeyValue("Account", acc?.name ?: "Account")
                     }
                     if (transaction.notes.isNotBlank()) {
+                        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
                         DetailKeyValue("Notes", transaction.notes)
                     }
                 }
@@ -689,11 +638,11 @@ fun TransactionDetailSheet(
                         .weight(1f)
                         .height(50.dp)
                         .testTag("tx_detail_delete_button"),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 ) {
-                    Icon(Icons.Rounded.DeleteOutline, contentDescription = null)
+                    Icon(Icons.Rounded.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.padding(4.dp))
                     Text("Delete")
                 }
@@ -704,9 +653,9 @@ fun TransactionDetailSheet(
                         .weight(1f)
                         .height(50.dp)
                         .testTag("tx_detail_edit_button"),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                 ) {
-                    Icon(Icons.Rounded.Edit, contentDescription = null)
+                    Icon(Icons.Rounded.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.padding(4.dp))
                     Text("Edit")
                 }
@@ -729,7 +678,7 @@ private fun DetailKeyValue(key: String, value: String) {
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(0.6f),
         )

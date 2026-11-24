@@ -1,0 +1,23 @@
+{
+  "applicationId": "com.aistudio.spendly.vkmxqr",
+  "appName": "Spendly",
+  "versionCode": 1,
+  "versionName": "1.0",
+  "minSdk": 24,
+  "targetSdk": 36,
+  "bundleFormat": "aab",
+  "tasks": {
+    "debugBundle": ":app:bundleDebug",
+    "releaseBundle": ":app:bundleRelease"
+  },
+  "outputs": {
+    "debug": "app/build/outputs/bundle/debug/app-debug.aab",
+    "release": "app/build/outputs/bundle/release/app-release.aab"
+  },
+  "optimizations": {
+    "uncompressNativeLibraries": true,
+    "languageSplits": true,
+    "densitySplits": true,
+    "abiSplits": true
+  }
+}

@@ -1,6 +1,7 @@
 package com.example.model
 
 import androidx.annotation.Keep
+import androidx.compose.runtime.Immutable
 import com.example.ui.theme.ThemeMode
 import java.util.Calendar
 
@@ -49,6 +50,7 @@ enum class ReportPeriod(val label: String, val monthsCount: Int) {
     LAST_3_MONTHS("Last 3 Months", 3),
 }
 
+@Immutable
 data class CurrencySpec(
     val code: String,
     val symbol: String,
@@ -59,6 +61,7 @@ data class CurrencySpec(
     val rateDate: String? = null,
 )
 
+@Immutable
 @Keep
 data class UserProfileRecord(
     val userId: String = "",
@@ -74,6 +77,7 @@ data class UserProfileRecord(
     val isPreviewDataActive: Boolean = false,
 )
 
+@Immutable
 @Keep
 data class AccountRecord(
     val id: String = "",
@@ -89,6 +93,7 @@ data class AccountRecord(
     val isArchived: Boolean = false,
 )
 
+@Immutable
 @Keep
 data class CategoryRecord(
     val id: String = "",
@@ -99,6 +104,7 @@ data class CategoryRecord(
     val isActive: Boolean = true,
 )
 
+@Immutable
 @Keep
 data class TransactionRecord(
     val id: String = "",
@@ -115,6 +121,7 @@ data class TransactionRecord(
     val isCreditCardRepayment: Boolean = false,
 )
 
+@Immutable
 @Keep
 data class BudgetRecord(
     val id: String = "",
@@ -127,6 +134,7 @@ data class BudgetRecord(
     val month: Int = 11, // 1..12
 )
 
+@Immutable
 data class MonthPeriod(
     val year: Int,
     val month: Int, // 1..12
@@ -142,6 +150,7 @@ data class MonthPeriod(
     }
 }
 
+@Immutable
 data class AccountSummary(
     val account: AccountRecord,
     val calculatedBalanceMinor: Long,
@@ -149,6 +158,7 @@ data class AccountSummary(
     val transactionCount: Int,
 )
 
+@Immutable
 data class BudgetSummary(
     val budget: BudgetRecord,
     val category: CategoryRecord?,

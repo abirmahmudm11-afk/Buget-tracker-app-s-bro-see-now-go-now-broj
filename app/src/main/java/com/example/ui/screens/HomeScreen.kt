@@ -3,23 +3,27 @@ package com.example.ui.screens
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,6 +32,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +45,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.BarChart
+import androidx.compose.material.icons.rounded.CreditCard
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.PieChart
@@ -54,6 +61,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -64,41 +72,48 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.model.AccountSummary
 import com.example.model.HomeTransactionFilter
 import com.example.model.MonthPeriod
 import com.example.model.TransactionRecord
 import com.example.model.TransactionType
 import com.example.ui.components.AnimatedMoneyText
+import com.example.ui.components.AnimatedTransactionItemEntrance
 import com.example.ui.components.BudgetProgressCard
+import com.example.ui.components.CategoryChartSlice
+import com.example.ui.components.CategoryPieChart
 import com.example.ui.components.EmptyLedgerState
+import com.example.ui.components.Interactive3DWalletCard
 import com.example.ui.components.LedgerGroupCard
 import com.example.ui.components.MonthPickerSheet
 import com.example.ui.components.MonthSelectorChip
 import com.example.ui.components.QuickExpenseModalSheet
 import com.example.ui.components.SpendlyBrandLogo
 import com.example.ui.components.TransactionLedgerRow
-import com.example.ui.components.accountGradientColors
+import com.example.ui.components.WalletMiniCardThumbnail
+import com.example.ui.components.accountAccentPair
 import com.example.ui.components.accountTypeIcon
-import com.example.ui.components.categoryIconFor
 import com.example.ui.theme.MoneyHeroStyle
+import com.example.ui.theme.MoneyRowStyle
 import com.example.ui.theme.SpendlyTheme
 import com.example.ui.theme.SpendlyTokens
 import com.example.ui.theme.ThemeMode
 import com.example.ui.theme.categoryColorPair
+import com.example.util.CardArtStore
 import com.example.util.DateFormatters
 import com.example.util.MoneyFormatter
 import com.example.viewmodel.SpendlyUiState
+import kotlin.math.abs
 
 @Composable
 fun HomeScreen(
@@ -124,6 +139,7 @@ fun HomeScreen(
     onOpenAccountDetail: (String) -> Unit,
     onOpenBudgets: () -> Unit,
     onOpenTransactionDetail: (TransactionRecord) -> Unit,
+    onOpenCategoryInActivity: (String) -> Unit = {},
 ) {
     var showMonthDialog by remember { mutableStateOf(false) }
     var showQuickExpenseModal by remember { mutableStateOf(false) }
@@ -146,20 +162,50 @@ fun HomeScreen(
         list.sortedByDescending { it.dateMillis }.take(8)
     }
 
-    val topCategories = remember(uiState.monthlyTransactions, uiState.categories, baseCode) {
-        val totalExpense = uiState.monthlyExpensesBaseMinor.coerceAtLeast(1L)
+    val categoryPieColors = remember(semantic.isDark) {
+        if (semantic.isDark) {
+            listOf(
+                Color(0xFF4CC2A5),
+                Color(0xFF6AB3E8),
+                Color(0xFFF27C89),
+                Color(0xFFEBB04D),
+                Color(0xFFB4A7EB),
+                Color(0xFF67C9D6),
+                Color(0xFFF09A6A),
+            )
+        } else {
+            listOf(
+                Color(0xFF0F5C4D),
+                Color(0xFF1D5A8A),
+                Color(0xFFB42334),
+                Color(0xFF9A5B00),
+                Color(0xFF4F4698),
+                Color(0xFF156778),
+                Color(0xFFB54718),
+            )
+        }
+    }
+
+    val categoryPieSlices = remember(uiState.monthlyTransactions, uiState.categories, baseCode, categoryPieColors) {
         uiState.monthlyTransactions
             .filter { it.type == TransactionType.EXPENSE }
-            .groupBy { it.categoryId }
+            .groupBy { it.categoryId ?: "uncategorized" }
             .entries
-            .mapNotNull { (catId, txs) ->
-                val cat = uiState.categoryById(catId) ?: return@mapNotNull null
+            .map { (catId, txs) ->
+                val catName = uiState.categoryById(catId)?.name ?: "Other"
                 val total = txs.sumOf { uiState.convertToBase(it.amountMinor, it.currencyCode) ?: 0L }
-                val ratio = (total.toFloat() / totalExpense.toFloat()).coerceIn(0f, 1f)
-                Triple(cat, total, ratio)
+                Triple(catId, catName, total)
             }
-            .sortedByDescending { it.second }
-            .take(5)
+            .filter { it.third > 0L }
+            .sortedByDescending { it.third }
+            .mapIndexed { idx, (catId, catName, total) ->
+                CategoryChartSlice(
+                    categoryId = catId,
+                    label = catName,
+                    amountMinor = total,
+                    color = categoryPieColors[idx % categoryPieColors.size],
+                )
+            }
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -169,17 +215,17 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .testTag("home_screen_list"),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 92.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // Top Bar + Editorial Greeting
-            item {
+            // Clean Header & Greeting
+            item(key = "home_top_bar") {
                 Column(
                     modifier = Modifier
                         .widthIn(max = 860.dp)
                         .fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -189,61 +235,49 @@ fun HomeScreen(
                         SpendlyBrandLogo()
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surface,
-                                shadowElevation = 1.dp,
+                            IconButton(
+                                onClick = onTogglePrivacy,
+                                modifier = Modifier
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("home_privacy_toggle"),
                             ) {
-                                IconButton(
-                                    onClick = onTogglePrivacy,
-                                    modifier = Modifier.size(40.dp).testTag("home_privacy_toggle"),
-                                ) {
-                                    Icon(
-                                        imageVector = if (hide) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                                        contentDescription = if (hide) "Show balances" else "Hide balances",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(19.dp),
-                                    )
-                                }
+                                Icon(
+                                    imageVector = if (hide) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                    contentDescription = if (hide) "Show balances" else "Hide balances",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(21.dp),
+                                )
                             }
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surface,
-                                shadowElevation = 1.dp,
+                            IconButton(
+                                onClick = {
+                                    val next = if (uiState.themeMode == ThemeMode.DARK) ThemeMode.LIGHT else ThemeMode.DARK
+                                    onToggleTheme(next)
+                                },
+                                modifier = Modifier
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("home_theme_toggle"),
                             ) {
-                                IconButton(
-                                    onClick = {
-                                        val next = if (uiState.themeMode == ThemeMode.DARK) ThemeMode.LIGHT else ThemeMode.DARK
-                                        onToggleTheme(next)
-                                    },
-                                    modifier = Modifier.size(40.dp).testTag("home_theme_toggle"),
-                                ) {
-                                    Icon(
-                                        imageVector = if (uiState.themeMode == ThemeMode.DARK) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
-                                        contentDescription = "Toggle theme appearance",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(19.dp),
-                                    )
-                                }
+                                Icon(
+                                    imageVector = if (uiState.themeMode == ThemeMode.DARK) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
+                                    contentDescription = "Switch appearance",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(21.dp),
+                                )
                             }
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surface,
-                                shadowElevation = 1.dp,
+                            IconButton(
+                                onClick = onOpenSettings,
+                                modifier = Modifier
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("home_settings_button"),
                             ) {
-                                IconButton(
-                                    onClick = onOpenSettings,
-                                    modifier = Modifier.size(40.dp).testTag("home_settings_button"),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Settings,
-                                        contentDescription = "Profile and settings",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(19.dp),
-                                    )
-                                }
+                                Icon(
+                                    imageVector = Icons.Rounded.Settings,
+                                    contentDescription = "Settings",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(21.dp),
+                                )
                             }
                         }
                     }
@@ -259,15 +293,13 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.headlineMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
-                            Text(
-                                text = if (uiState.isPreviewDataActive) {
-                                    "Cloud Ledger • Sample Data Active"
-                                } else {
-                                    "Cloud Ledger • Real-Time Sync"
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            if (uiState.isPreviewDataActive) {
+                                Text(
+                                    text = "Sample preview active",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                         MonthSelectorChip(
                             period = uiState.selectedPeriod,
@@ -277,13 +309,201 @@ fun HomeScreen(
                 }
             }
 
-            // Signature Obsidian-Emerald Header Card: Total Balance & Monthly Spending
-            item {
+            // Google Wallet 3D Card Carousel of User's Real Added Cards
+            item(key = "home_wallet_deck") {
+                val context = LocalContext.current
+                val artVersion by CardArtStore.version.collectAsStateWithLifecycle()
+                val walletSummaries = remember(uiState.accountSummaries) {
+                    uiState.accountSummaries.filter { !it.account.isArchived }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .widthIn(max = 860.dp)
+                        .fillMaxWidth()
+                        .testTag("home_wallet_deck"),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = if (walletSummaries.isEmpty()) "My Wallet" else "My Wallet (${walletSummaries.size})",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            if (walletSummaries.isNotEmpty()) {
+                                Surface(
+                                    shape = RoundedCornerShape(999.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                ) {
+                                    Text(
+                                        text = "Tap card to flip",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    )
+                                }
+                            }
+                        }
+
+                        TextButton(
+                            onClick = onManageAccounts,
+                            modifier = Modifier.testTag("home_wallet_manage_btn"),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Text(
+                                text = if (walletSummaries.isEmpty()) "Add Card" else "Add / Edit",
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        }
+                    }
+
+                    if (walletSummaries.isEmpty()) {
+                        Surface(
+                            onClick = onManageAccounts,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, semantic.surfaceBorder),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(18.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(MaterialTheme.colorScheme.primaryContainer),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.CreditCard,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                }
+                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = "Add your cards to Wallet",
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    )
+                                    Text(
+                                        text = "Add real card photos, bank logos, Visa/Mastercard marks, and opening balances.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                                    contentDescription = "Add card",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    } else {
+                        val pagerState = rememberPagerState(pageCount = { walletSummaries.size })
+                        HorizontalPager(
+                            state = pagerState,
+                            contentPadding = PaddingValues(horizontal = if (walletSummaries.size > 1) 18.dp else 0.dp),
+                            pageSpacing = 12.dp,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { page ->
+                            val summary = walletSummaries[page]
+                            val artPrefs = remember(summary.account.id, artVersion) {
+                                CardArtStore.getCardArt(context, summary.account.id)
+                            }
+                            val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                            val cardScale = (1f - abs(pageOffset).coerceIn(0f, 1f) * 0.06f)
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .graphicsLayer {
+                                        scaleX = cardScale
+                                        scaleY = cardScale
+                                    },
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Interactive3DWalletCard(
+                                    account = summary.account,
+                                    balanceMinor = summary.calculatedBalanceMinor,
+                                    hideBalances = hide,
+                                    artPrefs = artPrefs,
+                                    enableDragTilt = false,
+                                    externalTiltY = (-pageOffset * 18f).coerceIn(-22f, 22f),
+                                    secondaryHint = "Tap front",
+                                    testTag = "home_wallet_card_${summary.account.id}",
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 6.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = "${summary.transactionCount} transactions",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    TextButton(
+                                        onClick = { onOpenAccountDetail(summary.account.id) },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                    ) {
+                                        Text("Inspect & Edit", style = MaterialTheme.typography.labelMedium)
+                                    }
+                                }
+                            }
+                        }
+
+                        if (walletSummaries.size > 1) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                            ) {
+                                repeat(walletSummaries.size) { index ->
+                                    val active = pagerState.currentPage == index
+                                    Box(
+                                        modifier = Modifier
+                                            .height(6.dp)
+                                            .width(if (active) 20.dp else 6.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (active) MaterialTheme.colorScheme.primary
+                                                else MaterialTheme.colorScheme.outlineVariant
+                                            ),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Architectural Balance Summary Card
+            item(key = "home_hero_card") {
                 AnimatedVisibility(
                     visible = entranceVisible,
-                    enter = fadeIn() + slideInVertically(
-                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                        initialOffsetY = { it / 8 },
+                    enter = fadeIn(tween(240)) + slideInVertically(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
+                        ),
+                        initialOffsetY = { it / 10 },
                     ),
                 ) {
                     Surface(
@@ -292,182 +512,149 @@ fun HomeScreen(
                             .fillMaxWidth()
                             .testTag("home_header_card"),
                         shape = RoundedCornerShape(SpendlyTokens.HeroRadius),
-                        shadowElevation = 6.dp,
-                        color = Color.Transparent,
+                        color = semantic.heroSurface,
+                        border = BorderStroke(1.dp, semantic.heroBorder),
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(
-                                            semantic.heroCardStart,
-                                            semantic.heroCardMid,
-                                            semantic.heroCardEnd,
-                                        )
-                                    )
-                                ),
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
-                            Canvas(modifier = Modifier.matchParentSize()) {
-                                drawCircle(
-                                    color = Color.White.copy(alpha = 0.06f),
-                                    radius = size.width * 0.42f,
-                                    center = Offset(size.width * 0.92f, size.height * 0.14f),
-                                    style = Stroke(width = 1.5.dp.toPx()),
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(
+                                        text = "Total balance",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = semantic.onHeroSurfaceMuted,
+                                    )
+                                    AnimatedMoneyText(
+                                        amountMinor = uiState.totalNetBalanceBaseMinor,
+                                        currencyCode = baseCode,
+                                        style = MoneyHeroStyle,
+                                        color = semantic.onHeroSurface,
+                                        hidden = hide,
+                                        hiddenText = "••••••",
+                                        modifier = Modifier.testTag("home_total_balance_value"),
+                                    )
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(999.dp),
+                                    color = semantic.onHeroWell,
+                                ) {
+                                    Text(
+                                        text = baseCode,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = semantic.heroAccent,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                HeroMetricWell(
+                                    label = "Monthly spending",
+                                    amountMinor = uiState.monthlyExpensesBaseMinor,
+                                    currencyCode = baseCode,
+                                    hide = hide,
+                                    icon = Icons.Rounded.ArrowUpward,
+                                    accentColor = Color(0xFFF5A3AC),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("home_monthly_spending_tile"),
                                 )
-                                drawCircle(
-                                    color = semantic.heroAccent.copy(alpha = 0.08f),
-                                    radius = size.width * 0.28f,
-                                    center = Offset(size.width * 0.92f, size.height * 0.14f),
-                                )
-                                drawCircle(
-                                    color = semantic.heroGold.copy(alpha = 0.06f),
-                                    radius = size.width * 0.22f,
-                                    center = Offset(size.width * 0.08f, size.height * 0.95f),
+                                HeroMetricWell(
+                                    label = "Monthly income",
+                                    amountMinor = uiState.monthlyIncomeBaseMinor,
+                                    currencyCode = baseCode,
+                                    hide = hide,
+                                    icon = Icons.Rounded.ArrowDownward,
+                                    accentColor = semantic.heroAccent,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("home_monthly_income_tile"),
                                 )
                             }
 
-                            Column(
-                                modifier = Modifier.padding(22.dp),
-                                verticalArrangement = Arrangement.spacedBy(18.dp),
+                            val overallBudget = uiState.overallBudgetSummary
+                            val remainingBudget = uiState.remainingOverallBudgetBaseMinor
+                            val animatedBudgetProgress by animateFloatAsState(
+                                targetValue = (overallBudget?.progress ?: 0f).coerceIn(0f, 1f),
+                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                label = "heroBudgetBar",
+                            )
+
+                            Surface(
+                                onClick = onOpenBudgets,
+                                shape = RoundedCornerShape(12.dp),
+                                color = semantic.onHeroWell,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("home_remaining_budget_pill"),
                             ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.Top,
+                                Column(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(
-                                            text = "Total Balance",
-                                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                                            color = semantic.onHeroCardMuted,
-                                        )
-                                        AnimatedMoneyText(
-                                            amountMinor = uiState.totalNetBalanceBaseMinor,
-                                            currencyCode = baseCode,
-                                            style = MoneyHeroStyle,
-                                            color = semantic.onHeroCard,
-                                            hidden = hide,
-                                            hiddenText = "••••••",
-                                            modifier = Modifier.testTag("home_total_balance_value"),
-                                        )
-                                    }
-
-                                    Surface(
-                                        shape = RoundedCornerShape(999.dp),
-                                        color = Color.White.copy(alpha = 0.14f),
-                                    ) {
-                                        Text(
-                                            text = baseCode,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = semantic.heroGold,
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                        )
-                                    }
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                ) {
-                                    HeroMetricTile(
-                                        label = "Monthly Spending",
-                                        amountMinor = uiState.monthlyExpensesBaseMinor,
-                                        currencyCode = baseCode,
-                                        hide = hide,
-                                        icon = Icons.Rounded.ArrowUpward,
-                                        badgeColor = Color(0xFFFDA4AF),
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .testTag("home_monthly_spending_tile"),
-                                    )
-                                    HeroMetricTile(
-                                        label = "Monthly Income",
-                                        amountMinor = uiState.monthlyIncomeBaseMinor,
-                                        currencyCode = baseCode,
-                                        hide = hide,
-                                        icon = Icons.Rounded.ArrowDownward,
-                                        badgeColor = semantic.heroAccent,
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .testTag("home_monthly_income_tile"),
-                                    )
-                                }
-
-                                val overallBudget = uiState.overallBudgetSummary
-                                val remainingBudget = uiState.remainingOverallBudgetBaseMinor
-                                val animatedBudgetProgress by animateFloatAsState(
-                                    targetValue = (overallBudget?.progress ?: 0f).coerceIn(0f, 1f),
-                                    animationSpec = spring(stiffness = Spring.StiffnessLow),
-                                    label = "heroBudgetBar",
-                                )
-
-                                Surface(
-                                    onClick = onOpenBudgets,
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = Color.Black.copy(alpha = 0.22f),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("home_remaining_budget_pill"),
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
                                     ) {
                                         Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Rounded.PieChart,
-                                                    contentDescription = null,
-                                                    tint = semantic.heroAccent,
-                                                    modifier = Modifier.size(16.dp),
-                                                )
-                                                Text(
-                                                    text = if (remainingBudget != null) "Remaining Monthly Budget" else "Set Monthly Budget",
-                                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                                                    color = semantic.onHeroCardMuted,
-                                                )
-                                            }
+                                            Icon(
+                                                imageVector = Icons.Rounded.PieChart,
+                                                contentDescription = null,
+                                                tint = semantic.heroAccent,
+                                                modifier = Modifier.size(16.dp),
+                                            )
                                             Text(
-                                                text = when {
-                                                    remainingBudget == null -> "Create →"
-                                                    hide -> "••••"
-                                                    remainingBudget < 0 -> "Over ${MoneyFormatter.formatMinor(-remainingBudget, baseCode)}"
-                                                    else -> MoneyFormatter.formatMinor(remainingBudget, baseCode)
-                                                },
-                                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                                color = semantic.onHeroCard,
+                                                text = if (remainingBudget != null) "Remaining monthly budget" else "Set monthly budget",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = semantic.onHeroSurfaceMuted,
                                             )
                                         }
-                                        if (overallBudget != null) {
+                                        Text(
+                                            text = when {
+                                                remainingBudget == null -> "Create"
+                                                hide -> "••••"
+                                                remainingBudget < 0 -> "Over ${MoneyFormatter.formatMinor(-remainingBudget, baseCode)}"
+                                                else -> MoneyFormatter.formatMinor(remainingBudget, baseCode)
+                                            },
+                                            style = MoneyRowStyle,
+                                            color = semantic.onHeroSurface,
+                                        )
+                                    }
+                                    if (overallBudget != null) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(5.dp)
+                                                .clip(RoundedCornerShape(999.dp))
+                                                .background(Color.White.copy(alpha = 0.16f)),
+                                        ) {
                                             Box(
                                                 modifier = Modifier
-                                                    .fillMaxWidth()
+                                                    .fillMaxWidth(animatedBudgetProgress)
                                                     .height(5.dp)
                                                     .clip(RoundedCornerShape(999.dp))
-                                                    .background(Color.White.copy(alpha = 0.16f)),
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth(animatedBudgetProgress)
-                                                        .height(5.dp)
-                                                        .clip(RoundedCornerShape(999.dp))
-                                                        .background(
-                                                            when {
-                                                                overallBudget.isOverspent -> Color(0xFFFB7185)
-                                                                overallBudget.isNearLimit -> semantic.heroGold
-                                                                else -> semantic.heroAccent
-                                                            }
-                                                        ),
-                                                )
-                                            }
+                                                    .background(
+                                                        when {
+                                                            overallBudget.isOverspent -> Color(0xFFF5A3AC)
+                                                            overallBudget.isNearLimit -> semantic.heroWarn
+                                                            else -> semantic.heroAccent
+                                                        }
+                                                    ),
+                                            )
                                         }
                                     }
                                 }
@@ -477,15 +664,15 @@ fun HomeScreen(
                 }
             }
 
-            // Airy Quick Actions Bar
-            item {
+            // Quick Actions Row
+            item(key = "home_quick_actions") {
                 Row(
                     modifier = Modifier
                         .widthIn(max = 860.dp)
                         .fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    ColorfulQuickActionTile(
+                    QuickActionTile(
                         label = "Expense",
                         icon = Icons.Rounded.ArrowUpward,
                         tint = semantic.expense,
@@ -494,7 +681,7 @@ fun HomeScreen(
                         testTag = "home_add_expense",
                         modifier = Modifier.weight(1f),
                     )
-                    ColorfulQuickActionTile(
+                    QuickActionTile(
                         label = "Income",
                         icon = Icons.Rounded.ArrowDownward,
                         tint = semantic.income,
@@ -503,7 +690,7 @@ fun HomeScreen(
                         testTag = "home_add_income",
                         modifier = Modifier.weight(1f),
                     )
-                    ColorfulQuickActionTile(
+                    QuickActionTile(
                         label = "Transfer",
                         icon = Icons.AutoMirrored.Rounded.CompareArrows,
                         tint = semantic.transfer,
@@ -512,7 +699,7 @@ fun HomeScreen(
                         testTag = "home_add_transfer",
                         modifier = Modifier.weight(1f),
                     )
-                    ColorfulQuickActionTile(
+                    QuickActionTile(
                         label = "Reports",
                         icon = Icons.Rounded.BarChart,
                         tint = semantic.warning,
@@ -524,17 +711,23 @@ fun HomeScreen(
                 }
             }
 
-            // Main Transaction List with All / Income / Expense Filter Toggle
-            item {
+            // Transactions Feed
+            item(key = "home_transactions_section") {
                 Column(
                     modifier = Modifier
                         .widthIn(max = 860.dp)
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .animateContentSize(
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            )
+                        ),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     SectionHeader(
                         title = "Transactions",
-                        actionLabel = "View All",
+                        actionLabel = "View all",
                         onAction = onViewAllTransactions,
                         testTag = "home_view_all",
                     )
@@ -545,20 +738,28 @@ fun HomeScreen(
                     )
 
                     AnimatedContent(
-                        targetState = uiState.homeFilter to filteredHomeTransactions,
+                        targetState = uiState.homeFilter,
                         transitionSpec = {
-                            fadeIn() togetherWith fadeOut()
+                            (fadeIn(tween(220, easing = FastOutSlowInEasing)) +
+                                slideInVertically(
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                        stiffness = Spring.StiffnessMediumLow,
+                                    ),
+                                    initialOffsetY = { (it * 0.05f).toInt() },
+                                )) togetherWith fadeOut(tween(140))
                         },
                         label = "homeTxList",
-                    ) { (activeFilter, txs) ->
+                    ) { activeFilter ->
+                        val txs = filteredHomeTransactions
                         if (txs.isEmpty()) {
                             val emptySubtitle = when (activeFilter) {
                                 HomeTransactionFilter.ALL ->
-                                    "Tap the + Log Expense button to record your first entry for ${DateFormatters.formatMonthPeriod(uiState.selectedPeriod)}."
+                                    "Log an expense or income entry for ${DateFormatters.formatMonthPeriod(uiState.selectedPeriod)}."
                                 HomeTransactionFilter.INCOME ->
-                                    "No income entries recorded for ${DateFormatters.formatMonthPeriod(uiState.selectedPeriod)}."
+                                    "No income recorded in ${DateFormatters.formatMonthPeriod(uiState.selectedPeriod)}."
                                 HomeTransactionFilter.EXPENSE ->
-                                    "No expense entries recorded for ${DateFormatters.formatMonthPeriod(uiState.selectedPeriod)}."
+                                    "No expenses recorded in ${DateFormatters.formatMonthPeriod(uiState.selectedPeriod)}."
                             }
                             EmptyLedgerState(
                                 title = "No ${if (activeFilter == HomeTransactionFilter.ALL) "" else activeFilter.label.lowercase() + " "}transactions",
@@ -572,121 +773,31 @@ fun HomeScreen(
                         } else {
                             LedgerGroupCard {
                                 txs.forEachIndexed { idx, tx ->
-                                    val accName = uiState.accountById(tx.accountId)?.name ?: "Account"
-                                    val destName = tx.destinationAccountId?.let { uiState.accountById(it)?.name }
-                                    val cat = uiState.categoryById(tx.categoryId)
-                                    TransactionLedgerRow(
-                                        transaction = tx,
-                                        category = cat,
-                                        accountName = accName,
-                                        destinationAccountName = destName,
-                                        defaultCurrencyCode = baseCode,
-                                        convertedBaseMinor = uiState.convertToBase(tx.amountMinor, tx.currencyCode),
-                                        hideBalances = hide,
-                                        onClick = { onOpenTransactionDetail(tx) },
-                                        grouped = true,
-                                    )
-                                    if (idx < txs.lastIndex) {
-                                        HorizontalDivider(
-                                            modifier = Modifier.padding(start = 72.dp, end = 16.dp),
-                                            thickness = 0.5.dp,
-                                            color = MaterialTheme.colorScheme.outlineVariant,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Top Spending Categories Strip
-            if (topCategories.isNotEmpty()) {
-                item {
-                    Column(
-                        modifier = Modifier
-                            .widthIn(max = 860.dp)
-                            .fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        SectionHeader(
-                            title = "Top Categories",
-                            actionLabel = "Analytics",
-                            onAction = onOpenReports,
-                            testTag = "home_categories_reports",
-                        )
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            topCategories.forEach { (cat, totalMinor, ratio) ->
-                                val (tint, bg) = categoryColorPair(cat.iconKey)
-                                Surface(
-                                    onClick = onOpenBudgets,
-                                    shape = RoundedCornerShape(18.dp),
-                                    color = MaterialTheme.colorScheme.surface,
-                                    shadowElevation = 2.dp,
-                                    modifier = Modifier.width(164.dp),
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(14.dp),
-                                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(34.dp)
-                                                    .clip(RoundedCornerShape(10.dp))
-                                                    .background(bg),
-                                                contentAlignment = Alignment.Center,
-                                            ) {
-                                                Icon(
-                                                    imageVector = categoryIconFor(cat.iconKey),
-                                                    contentDescription = cat.name,
-                                                    tint = tint,
-                                                    modifier = Modifier.size(18.dp),
+                                    androidx.compose.runtime.key(activeFilter, tx.id) {
+                                        val accName = uiState.accountById(tx.accountId)?.name ?: "Account"
+                                        val destName = tx.destinationAccountId?.let { uiState.accountById(it)?.name }
+                                        val cat = uiState.categoryById(tx.categoryId)
+                                        AnimatedTransactionItemEntrance(index = idx) {
+                                            Column {
+                                                TransactionLedgerRow(
+                                                    transaction = tx,
+                                                    category = cat,
+                                                    accountName = accName,
+                                                    destinationAccountName = destName,
+                                                    defaultCurrencyCode = baseCode,
+                                                    convertedBaseMinor = uiState.convertToBase(tx.amountMinor, tx.currencyCode),
+                                                    hideBalances = hide,
+                                                    onClick = { onOpenTransactionDetail(tx) },
+                                                    grouped = true,
                                                 )
+                                                if (idx < txs.lastIndex) {
+                                                    HorizontalDivider(
+                                                        modifier = Modifier.padding(start = 68.dp, end = 16.dp),
+                                                        thickness = 0.5.dp,
+                                                        color = MaterialTheme.colorScheme.outlineVariant,
+                                                    )
+                                                }
                                             }
-                                            Text(
-                                                text = "${(ratio * 100).toInt()}%",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = tint,
-                                            )
-                                        }
-                                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                            Text(
-                                                text = cat.name,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                            )
-                                            Text(
-                                                text = if (hide) "••••" else MoneyFormatter.formatMinor(totalMinor, baseCode),
-                                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                            )
-                                        }
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(4.dp)
-                                                .clip(RoundedCornerShape(999.dp))
-                                                .background(MaterialTheme.colorScheme.surfaceContainer),
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth(ratio)
-                                                    .height(4.dp)
-                                                    .clip(RoundedCornerShape(999.dp))
-                                                    .background(tint),
-                                            )
                                         }
                                     }
                                 }
@@ -696,8 +807,67 @@ fun HomeScreen(
                 }
             }
 
-            // Monthly Budget Health
-            item {
+            // Spending by Category Pie Chart (Main Dashboard)
+            item(key = "home_category_pie_chart") {
+                Column(
+                    modifier = Modifier
+                        .widthIn(max = 860.dp)
+                        .fillMaxWidth()
+                        .testTag("home_category_pie_card"),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    SectionHeader(
+                        title = "Spending by Category",
+                        actionLabel = "Reports",
+                        onAction = onOpenReports,
+                        testTag = "home_categories_reports",
+                    )
+
+                    if (categoryPieSlices.isEmpty()) {
+                        EmptyLedgerState(
+                            title = "No category spending yet",
+                            subtitle = "Record an expense for ${DateFormatters.formatMonthPeriod(uiState.selectedPeriod)} to view your category pie chart.",
+                            actionLabel = "Add Expense",
+                            onActionClick = onAddExpense,
+                        )
+                    } else {
+                        LedgerGroupCard {
+                            Column(
+                                modifier = Modifier.padding(18.dp),
+                                verticalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = DateFormatters.formatMonthPeriod(uiState.selectedPeriod),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    Text(
+                                        text = if (hide) "Spending ••••" else "Total ${MoneyFormatter.formatMinor(uiState.monthlyExpensesBaseMinor, baseCode)}",
+                                        style = MoneyRowStyle,
+                                        color = semantic.expense,
+                                    )
+                                }
+                                CategoryPieChart(
+                                    slices = categoryPieSlices,
+                                    currencyCode = baseCode,
+                                    hideBalances = hide,
+                                    onSliceInspect = { slice ->
+                                        onOpenCategoryInActivity(slice.categoryId)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Monthly Budget
+            item(key = "home_monthly_budget") {
                 Column(
                     modifier = Modifier
                         .widthIn(max = 860.dp)
@@ -726,7 +896,7 @@ fun HomeScreen(
                                 .testTag("home_create_budget_cta"),
                             shape = RoundedCornerShape(SpendlyTokens.CardRadius),
                             color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 2.dp,
+                            border = BorderStroke(1.dp, semantic.surfaceBorder),
                         ) {
                             Row(
                                 modifier = Modifier.padding(16.dp),
@@ -752,8 +922,8 @@ fun HomeScreen(
                 }
             }
 
-            // Accounts Carousel Section
-            item {
+            // Accounts Summary & Carousel
+            item(key = "home_accounts_carousel") {
                 Column(
                     modifier = Modifier
                         .widthIn(max = 860.dp)
@@ -762,7 +932,7 @@ fun HomeScreen(
                 ) {
                     SectionHeader(
                         title = "Accounts (${uiState.activeAccounts.size})",
-                        actionLabel = "Manage All",
+                        actionLabel = "Manage all",
                         onAction = onManageAccounts,
                         testTag = "home_manage_accounts",
                     )
@@ -773,7 +943,7 @@ fun HomeScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(SpendlyTokens.CardRadius),
                             color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 2.dp,
+                            border = BorderStroke(1.dp, semantic.surfaceBorder),
                         ) {
                             Row(
                                 modifier = Modifier.padding(16.dp),
@@ -781,7 +951,7 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text("Add your first account or wallet", style = MaterialTheme.typography.titleSmall)
+                                    Text("Add your first account", style = MaterialTheme.typography.titleSmall)
                                     Text(
                                         "Track bank accounts, cards, and cash wallets manually.",
                                         style = MaterialTheme.typography.bodySmall,
@@ -792,33 +962,38 @@ fun HomeScreen(
                             }
                         }
                     } else {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            Surface(
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(16.dp),
-                                color = MaterialTheme.colorScheme.surface,
-                                shadowElevation = 1.dp,
+                        LedgerGroupCard {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Text("ASSETS", style = MaterialTheme.typography.labelSmall, color = semantic.income)
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                                ) {
+                                    Text("Assets", style = MaterialTheme.typography.labelMedium, color = semantic.income)
                                     Text(
                                         text = if (hide) "••••" else MoneyFormatter.formatMinor(uiState.totalAssetsBaseMinor, baseCode),
                                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                         color = MaterialTheme.colorScheme.onSurface,
                                     )
                                 }
-                            }
-                            Surface(
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(16.dp),
-                                color = MaterialTheme.colorScheme.surface,
-                                shadowElevation = 1.dp,
-                            ) {
-                                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Text("CARD DUE", style = MaterialTheme.typography.labelSmall, color = semantic.warning)
+                                VerticalDivider(
+                                    modifier = Modifier.height(34.dp),
+                                    thickness = 0.5.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                )
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                                ) {
+                                    Text("Card due", style = MaterialTheme.typography.labelMedium, color = semantic.warning)
                                     Text(
                                         text = if (hide) "••••" else MoneyFormatter.formatMinor(uiState.totalCreditOutstandingBaseMinor, baseCode),
                                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -833,10 +1008,10 @@ fun HomeScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             activeSummaries.forEach { summary ->
-                                GradientAccountCardPill(
+                                AccountCarouselCard(
                                     summary = summary,
                                     hideBalances = hide,
                                     onClick = { onOpenAccountDetail(summary.account.id) },
@@ -849,17 +1024,17 @@ fun HomeScreen(
             }
         }
 
-        // Main Screen Floating Action Button -> Opens Quick Expense Modal Form
         ExtendedFloatingActionButton(
             onClick = { showQuickExpenseModal = true },
             icon = { Icon(Icons.Rounded.Add, contentDescription = "Log expense") },
             text = { Text("Log Expense", fontWeight = FontWeight.SemiBold) },
             containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = Color.White,
-            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            shape = RoundedCornerShape(16.dp),
+            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 3.dp),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(16.dp)
+                .padding(end = 16.dp, bottom = 14.dp)
                 .testTag("home_fab_log_expense"),
         )
     }
@@ -887,9 +1062,11 @@ private fun HomeTransactionFilterBar(
     selectedFilter: HomeTransactionFilter,
     onSelectFilter: (HomeTransactionFilter) -> Unit,
 ) {
+    val semantic = SpendlyTheme.semantic
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(999.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, semantic.surfaceBorder),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
@@ -901,27 +1078,27 @@ private fun HomeTransactionFilterBar(
             HomeTransactionFilter.entries.forEach { filter ->
                 val active = selectedFilter == filter
                 val bgColor by animateColorAsState(
-                    targetValue = if (active) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    targetValue = if (active) MaterialTheme.colorScheme.surface else Color.Transparent,
                     label = "homeFilterBg",
                 )
                 val textColor by animateColorAsState(
-                    targetValue = if (active) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                    targetValue = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     label = "homeFilterText",
                 )
                 Surface(
                     onClick = { onSelectFilter(filter) },
                     modifier = Modifier
                         .weight(1f)
-                        .height(40.dp)
+                        .height(38.dp)
                         .testTag("home_filter_${filter.name.lowercase()}"),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(999.dp),
                     color = bgColor,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
                             text = filter.label,
                             style = MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
                             ),
                             color = textColor,
                         )
@@ -933,47 +1110,39 @@ private fun HomeTransactionFilterBar(
 }
 
 @Composable
-private fun HeroMetricTile(
+private fun HeroMetricWell(
     label: String,
     amountMinor: Long,
     currencyCode: String,
     hide: Boolean,
     icon: ImageVector,
-    badgeColor: Color,
+    accentColor: Color,
     modifier: Modifier = Modifier,
 ) {
     val semantic = SpendlyTheme.semantic
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White.copy(alpha = 0.11f),
+        shape = RoundedCornerShape(12.dp),
+        color = semantic.onHeroWell,
     ) {
         Column(
-            modifier = Modifier.padding(13.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp),
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clip(CircleShape)
-                        .background(badgeColor.copy(alpha = 0.22f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = badgeColor,
-                        modifier = Modifier.size(13.dp),
-                    )
-                }
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(14.dp),
+                )
                 Text(
                     text = label,
                     style = MaterialTheme.typography.bodySmall,
-                    color = semantic.onHeroCardMuted,
+                    color = semantic.onHeroSurfaceMuted,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -982,7 +1151,7 @@ private fun HeroMetricTile(
                 amountMinor = amountMinor,
                 currencyCode = currencyCode,
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = semantic.onHeroCard,
+                color = semantic.onHeroSurface,
                 hidden = hide,
                 hiddenText = "••••",
             )
@@ -991,7 +1160,7 @@ private fun HeroMetricTile(
 }
 
 @Composable
-private fun ColorfulQuickActionTile(
+private fun QuickActionTile(
     label: String,
     icon: ImageVector,
     tint: Color,
@@ -1000,24 +1169,41 @@ private fun ColorfulQuickActionTile(
     testTag: String,
     modifier: Modifier = Modifier,
 ) {
+    val semantic = SpendlyTheme.semantic
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "quickActionScale",
+    )
+
     Surface(
         onClick = onClick,
+        interactionSource = interactionSource,
         modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .minimumInteractiveComponentSize()
             .testTag(testTag),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(SpendlyTokens.CardRadius),
         color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 2.dp,
+        border = BorderStroke(1.dp, semantic.surfaceBorder),
     ) {
         Column(
-            modifier = Modifier.padding(vertical = 13.dp, horizontal = 6.dp),
+            modifier = Modifier.padding(vertical = 12.dp, horizontal = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
             Box(
                 modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(13.dp))
+                    .size(38.dp)
+                    .clip(CircleShape)
                     .background(bg),
                 contentAlignment = Alignment.Center,
             ) {
@@ -1025,12 +1211,12 @@ private fun ColorfulQuickActionTile(
                     imageVector = icon,
                     contentDescription = label,
                     tint = tint,
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(19.dp),
                 )
             }
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
@@ -1041,7 +1227,7 @@ private fun ColorfulQuickActionTile(
 }
 
 @Composable
-private fun GradientAccountCardPill(
+private fun AccountCarouselCard(
     summary: AccountSummary,
     hideBalances: Boolean,
     onClick: () -> Unit,
@@ -1049,86 +1235,70 @@ private fun GradientAccountCardPill(
 ) {
     val account = summary.account
     val isCredit = account.type.isLiability
-    val (gradStart, gradEnd) = accountGradientColors(account.type)
+    val semantic = SpendlyTheme.semantic
+    val context = LocalContext.current
+    val artVersion by CardArtStore.version.collectAsStateWithLifecycle()
+    val artPrefs = remember(account.id, artVersion) {
+        CardArtStore.getCardArt(context, account.id)
+    }
 
     Surface(
         onClick = onClick,
         modifier = modifier
             .minimumInteractiveComponentSize()
             .testTag("home_account_pill_${account.id}"),
-        shape = RoundedCornerShape(20.dp),
-        shadowElevation = 4.dp,
+        shape = RoundedCornerShape(SpendlyTokens.CardRadius),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, semantic.surfaceBorder),
     ) {
-        Box(
-            modifier = Modifier
-                .background(Brush.linearGradient(listOf(gradStart, gradEnd))),
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Canvas(modifier = Modifier.matchParentSize()) {
-                drawCircle(
-                    color = Color.White.copy(alpha = 0.08f),
-                    radius = size.width * 0.45f,
-                    center = Offset(size.width * 0.95f, size.height * 0.1f),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                WalletMiniCardThumbnail(
+                    account = account,
+                    artPrefs = artPrefs,
+                )
+                Text(
+                    text = if (account.lastFour.isNotBlank()) "•• ${account.lastFour}" else account.currencyCode,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color.White.copy(alpha = 0.18f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = accountTypeIcon(account.type),
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                    Text(
-                        text = if (account.lastFour.isNotBlank()) "•• ${account.lastFour}" else account.currencyCode,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.85f),
-                    )
-                }
 
-                Column {
-                    Text(
-                        text = account.name,
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = account.type.displayName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.75f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(
+                    text = account.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = account.type.displayName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
 
-                Column {
-                    Text(
-                        text = if (isCredit) "OUTSTANDING" else "BALANCE",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.75f),
-                    )
-                    Text(
-                        text = if (hideBalances) "••••" else MoneyFormatter.formatMinor(summary.calculatedBalanceMinor, account.currencyCode),
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White,
-                    )
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(
+                    text = if (isCredit) "Outstanding" else "Balance",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isCredit) semantic.warning else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = if (hideBalances) "••••" else MoneyFormatter.formatMinor(summary.calculatedBalanceMinor, account.currencyCode),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
             }
         }
     }
@@ -1148,7 +1318,7 @@ private fun SectionHeader(
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
         TextButton(

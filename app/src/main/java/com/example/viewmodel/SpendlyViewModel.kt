@@ -1,6 +1,7 @@
 package com.example.viewmodel
 
 import android.util.Log
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.SpendlyRepository
@@ -27,6 +28,8 @@ import com.google.firebase.firestore.FirebaseFirestoreException
 import java.util.Calendar
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -35,6 +38,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -65,6 +69,7 @@ private sealed interface StreamState<out T> {
     data class Failed(val message: String) : StreamState<Nothing>
 }
 
+@Immutable
 data class SpendlyUiState(
     val isLoading: Boolean = true,
     val syncError: String? = null,
@@ -93,30 +98,26 @@ data class SpendlyUiState(
     val activitySearchQuery: String = "",
     val activitySortOption: SortOption = SortOption.NEWEST,
     val reportPeriod: ReportPeriod = ReportPeriod.THIS_MONTH,
+    // Precomputed fields (calculated once off the main thread in combine + flowOn(Dispatchers.Default))
+    val accountsMap: Map<String, AccountRecord> = emptyMap(),
+    val categoriesMap: Map<String, CategoryRecord> = defaultCategories().associateBy { it.id },
+    val availablePeriods: List<MonthPeriod> = emptyList(),
+    val activeAccounts: List<AccountRecord> = emptyList(),
+    val archivedAccounts: List<AccountRecord> = emptyList(),
+    val accountSummaries: List<AccountSummary> = emptyList(),
+    val totalAssetsBaseMinor: Long = 0L,
+    val totalCreditOutstandingBaseMinor: Long = 0L,
+    val totalNetBalanceBaseMinor: Long = 0L,
+    val monthlyTransactions: List<TransactionRecord> = emptyList(),
+    val monthlyExpensesBaseMinor: Long = 0L,
+    val monthlyIncomeBaseMinor: Long = 0L,
+    val monthlyNetCashFlowBaseMinor: Long = 0L,
+    val overallBudgetSummary: BudgetSummary? = null,
+    val categoryBudgetSummaries: List<BudgetSummary> = emptyList(),
+    val remainingOverallBudgetBaseMinor: Long? = null,
 ) {
-    val availablePeriods: List<MonthPeriod>
-        get() {
-            val base = buildList {
-                val cal = Calendar.getInstance()
-                repeat(6) {
-                    add(MonthPeriod(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1))
-                    cal.add(Calendar.MONTH, -1)
-                }
-                transactions.forEach { add(DateFormatters.monthPeriodOf(it.dateMillis)) }
-                budgets.forEach { add(MonthPeriod(it.year, it.month)) }
-            }
-            return base.distinct()
-                .sortedWith(compareByDescending<MonthPeriod> { it.year }.thenByDescending { it.month })
-        }
-
-    val activeAccounts: List<AccountRecord>
-        get() = accounts.filter { !it.isArchived }
-
-    val archivedAccounts: List<AccountRecord>
-        get() = accounts.filter { it.isArchived }
-
-    fun accountById(id: String): AccountRecord? = accounts.firstOrNull { it.id == id }
-    fun categoryById(id: String?): CategoryRecord? = categories.firstOrNull { it.id == id }
+    fun accountById(id: String): AccountRecord? = accountsMap[id] ?: accounts.firstOrNull { it.id == id }
+    fun categoryById(id: String?): CategoryRecord? = if (id == null) null else (categoriesMap[id] ?: categories.firstOrNull { it.id == id })
 
     fun convertToBase(amountMinor: Long, currencyCode: String): Long? {
         return when (val res = MoneyFormatter.convertMinor(amountMinor, currencyCode, defaultCurrencyCode)) {
@@ -124,129 +125,6 @@ data class SpendlyUiState(
             is ConversionResult.Unavailable -> null
         }
     }
-
-    val accountSummaries: List<AccountSummary>
-        get() = accounts.map { acc ->
-            val relevantTx = transactions.filter {
-                it.accountId == acc.id || it.destinationAccountId == acc.id
-            }
-            var balance = acc.openingBalanceMinor
-            relevantTx.forEach { tx ->
-                if (acc.type.isLiability) {
-                    when (tx.type) {
-                        TransactionType.EXPENSE -> if (tx.accountId == acc.id) balance += tx.amountMinor
-                        TransactionType.INCOME -> if (tx.accountId == acc.id) balance -= tx.amountMinor
-                        TransactionType.TRANSFER -> {
-                            if (tx.destinationAccountId == acc.id) balance -= tx.amountMinor
-                            if (tx.accountId == acc.id) balance += tx.amountMinor
-                        }
-                    }
-                } else {
-                    when (tx.type) {
-                        TransactionType.EXPENSE -> if (tx.accountId == acc.id) balance -= tx.amountMinor
-                        TransactionType.INCOME -> if (tx.accountId == acc.id) balance += tx.amountMinor
-                        TransactionType.TRANSFER -> {
-                            if (tx.accountId == acc.id) balance -= tx.amountMinor
-                            if (tx.destinationAccountId == acc.id) balance += tx.amountMinor
-                        }
-                    }
-                }
-            }
-            AccountSummary(
-                account = acc,
-                calculatedBalanceMinor = balance,
-                convertedBaseMinor = convertToBase(balance, acc.currencyCode),
-                transactionCount = relevantTx.size,
-            )
-        }
-
-    val totalAssetsBaseMinor: Long
-        get() = accountSummaries
-            .filter { !it.account.isArchived && !it.account.type.isLiability }
-            .sumOf { it.convertedBaseMinor ?: 0L }
-
-    val totalCreditOutstandingBaseMinor: Long
-        get() = accountSummaries
-            .filter { !it.account.isArchived && it.account.type.isLiability }
-            .sumOf { it.convertedBaseMinor ?: 0L }
-
-    val totalNetBalanceBaseMinor: Long
-        get() = totalAssetsBaseMinor - totalCreditOutstandingBaseMinor
-
-    val monthlyTransactions: List<TransactionRecord>
-        get() = transactions.filter { DateFormatters.monthPeriodOf(it.dateMillis) == selectedPeriod }
-
-    val monthlyExpensesBaseMinor: Long
-        get() = monthlyTransactions
-            .filter { it.type == TransactionType.EXPENSE }
-            .sumOf { convertToBase(it.amountMinor, it.currencyCode) ?: 0L }
-
-    val monthlyIncomeBaseMinor: Long
-        get() = monthlyTransactions
-            .filter { it.type == TransactionType.INCOME }
-            .sumOf { convertToBase(it.amountMinor, it.currencyCode) ?: 0L }
-
-    val monthlyNetCashFlowBaseMinor: Long
-        get() = monthlyIncomeBaseMinor - monthlyExpensesBaseMinor
-
-    val overallBudgetSummary: BudgetSummary?
-        get() {
-            val b = budgets.firstOrNull {
-                it.scope == BudgetScope.OVERALL &&
-                    it.year == selectedPeriod.year &&
-                    it.month == selectedPeriod.month
-            } ?: return null
-            val spentInBudgetCurrency = monthlyTransactions
-                .filter { it.type == TransactionType.EXPENSE }
-                .sumOf { tx ->
-                    when (val c = MoneyFormatter.convertMinor(tx.amountMinor, tx.currencyCode, b.currencyCode)) {
-                        is ConversionResult.Available -> c.convertedMinor
-                        is ConversionResult.Unavailable -> 0L
-                    }
-                }
-            val remaining = b.limitMinor - spentInBudgetCurrency
-            val progress = if (b.limitMinor > 0L) spentInBudgetCurrency.toFloat() / b.limitMinor.toFloat() else 0f
-            return BudgetSummary(
-                budget = b,
-                category = null,
-                spentMinor = spentInBudgetCurrency,
-                remainingMinor = remaining,
-                progress = progress,
-            )
-        }
-
-    val categoryBudgetSummaries: List<BudgetSummary>
-        get() = budgets
-            .filter {
-                it.scope == BudgetScope.CATEGORY &&
-                    it.year == selectedPeriod.year &&
-                    it.month == selectedPeriod.month
-            }
-            .map { b ->
-                val spentInBudgetCurrency = monthlyTransactions
-                    .filter { it.type == TransactionType.EXPENSE && it.categoryId == b.categoryId }
-                    .sumOf { tx ->
-                        when (val c = MoneyFormatter.convertMinor(tx.amountMinor, tx.currencyCode, b.currencyCode)) {
-                            is ConversionResult.Available -> c.convertedMinor
-                            is ConversionResult.Unavailable -> 0L
-                        }
-                    }
-                val remaining = b.limitMinor - spentInBudgetCurrency
-                val progress = if (b.limitMinor > 0L) spentInBudgetCurrency.toFloat() / b.limitMinor.toFloat() else 0f
-                BudgetSummary(
-                    budget = b,
-                    category = categoryById(b.categoryId),
-                    spentMinor = spentInBudgetCurrency,
-                    remainingMinor = remaining,
-                    progress = progress,
-                )
-            }
-
-    val remainingOverallBudgetBaseMinor: Long?
-        get() {
-            val summary = overallBudgetSummary ?: return null
-            return convertToBase(summary.remainingMinor, summary.budget.currencyCode)
-        }
 }
 
 class SpendlyViewModel(
@@ -260,7 +138,7 @@ class SpendlyViewModel(
     val events: SharedFlow<SpendlyEvent> = _events.asSharedFlow()
 
     private fun <T> Flow<T>.asStreamState(label: String): Flow<StreamState<T>> {
-        return kotlinx.coroutines.flow.flow {
+        return kotlinx.coroutines.flow.flow<StreamState<T>> {
             collect { emit(StreamState.Ready(it)) }
         }.catch { error ->
             val firestoreError = generateSequence(error) { it.cause }
@@ -312,28 +190,15 @@ class SpendlyViewModel(
         val transactions = (remote.transactions as? StreamState.Ready)?.data.orEmpty()
         val budgets = (remote.budgets as? StreamState.Ready)?.data.orEmpty()
         val remoteCategories = (remote.categories as? StreamState.Ready)?.data.orEmpty()
-        val mergedCategories = (defaultCategories() + remoteCategories).distinctBy { it.id }
 
-        SpendlyUiState(
-            isLoading = anyLoading && profile == null,
-            syncError = local.syncError ?: streamError,
-            isSyncing = local.isSyncing,
-            onboardingComplete = profile?.onboardingComplete ?: false,
-            defaultCurrencyCode = profile?.defaultCurrencyCode ?: "USD",
-            selectedLanguage = profile?.selectedLanguage ?: "English",
-            themeMode = profile?.themeMode ?: ThemeMode.LIGHT,
-            profileName = profile?.profileName ?: initialDisplayName,
-            budgetAlertsEnabled = profile?.budgetAlertsEnabled ?: true,
-            weeklyDigestEnabled = profile?.weeklyDigestEnabled ?: true,
-            dailyReminderEnabled = profile?.dailyReminderEnabled ?: false,
-            privacyHideBalances = profile?.privacyHideBalances ?: false,
-            isPreviewDataActive = profile?.isPreviewDataActive ?: false,
-            selectedPeriod = local.selectedPeriod,
-            homeFilter = local.homeFilter,
+        computeSpendlyUiState(
+            profile = profile,
             accounts = accounts,
-            categories = mergedCategories,
             transactions = transactions,
             budgets = budgets,
+            remoteCategories = remoteCategories,
+            selectedPeriod = local.selectedPeriod,
+            homeFilter = local.homeFilter,
             lastDeletedTransaction = local.lastDeletedTransaction,
             activityFilterPeriod = local.activityFilterPeriod,
             activityFilterCategoryId = local.activityFilterCategoryId,
@@ -342,12 +207,18 @@ class SpendlyViewModel(
             activitySearchQuery = local.activitySearchQuery,
             activitySortOption = local.activitySortOption,
             reportPeriod = local.reportPeriod,
+            isLoading = anyLoading && profile == null,
+            syncError = local.syncError ?: streamError,
+            isSyncing = local.isSyncing,
+            initialDisplayName = initialDisplayName,
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000L),
-        initialValue = SpendlyUiState(isLoading = true, profileName = initialDisplayName),
-    )
+    }
+        .flowOn(Dispatchers.Default)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000L),
+            initialValue = SpendlyUiState(isLoading = true, profileName = initialDisplayName),
+        )
 
     init {
         viewModelScope.launch {
@@ -729,10 +600,11 @@ class SpendlyViewModel(
         openingBalanceMinor: Long,
         creditLimitMinor: Long?,
         description: String,
-    ) {
+    ): String {
         val existing = existingId?.let { uiState.value.accountById(it) }
+        val resolvedId = existingId ?: "acc_${UUID.randomUUID().toString().take(8)}"
         val record = AccountRecord(
-            id = existingId ?: "acc_${UUID.randomUUID().toString().take(8)}",
+            id = resolvedId,
             name = name.trim(),
             type = type,
             institutionName = institutionName.trim(),
@@ -748,6 +620,7 @@ class SpendlyViewModel(
             repository.saveAccount(record, isUpdate = existingId != null)
                 .onFailure { err -> localFilters.update { it.copy(syncError = err.localizedMessage) } }
         }
+        return resolvedId
     }
 
     fun toggleArchiveAccount(accountId: String) {
@@ -1190,3 +1063,230 @@ private fun sampleBudgets(): List<BudgetRecord> {
         ),
     )
 }
+
+internal fun computeSpendlyUiState(
+    profile: UserProfileRecord?,
+    accounts: List<AccountRecord>,
+    transactions: List<TransactionRecord>,
+    budgets: List<BudgetRecord>,
+    remoteCategories: List<CategoryRecord> = emptyList(),
+    selectedPeriod: MonthPeriod = MonthPeriod.current(),
+    homeFilter: HomeTransactionFilter = HomeTransactionFilter.ALL,
+    lastDeletedTransaction: TransactionRecord? = null,
+    activityFilterPeriod: MonthPeriod? = null,
+    activityFilterCategoryId: String? = null,
+    activityFilterAccountId: String? = null,
+    activityFilterType: TransactionType? = null,
+    activitySearchQuery: String = "",
+    activitySortOption: SortOption = SortOption.NEWEST,
+    reportPeriod: ReportPeriod = ReportPeriod.THIS_MONTH,
+    isLoading: Boolean = false,
+    syncError: String? = null,
+    isSyncing: Boolean = false,
+    initialDisplayName: String = "Spendly User",
+): SpendlyUiState {
+    val mergedCategories = (defaultCategories() + remoteCategories).distinctBy { it.id }
+
+    val defaultCurrencyCode = profile?.defaultCurrencyCode ?: "USD"
+    val accountsMap = accounts.associateBy { it.id }
+    val categoriesMap = mergedCategories.associateBy { it.id }
+    val activeAccounts = accounts.filter { !it.isArchived }
+    val archivedAccounts = accounts.filter { it.isArchived }
+
+    fun toBase(amountMinor: Long, currencyCode: String): Long? {
+        return when (val res = MoneyFormatter.convertMinor(amountMinor, currencyCode, defaultCurrencyCode)) {
+            is ConversionResult.Available -> res.convertedMinor
+            is ConversionResult.Unavailable -> null
+        }
+    }
+
+    // Single-pass O(T + A) balance accumulation
+    val balanceDeltaByAcc = HashMap<String, Long>(accounts.size * 2)
+    val txCountByAcc = HashMap<String, Int>(accounts.size * 2)
+    val periodSet = HashSet<MonthPeriod>(12)
+
+    val cal = Calendar.getInstance()
+    repeat(6) {
+        periodSet.add(MonthPeriod(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1))
+        cal.add(Calendar.MONTH, -1)
+    }
+    budgets.forEach { periodSet.add(MonthPeriod(it.year, it.month)) }
+
+    val monthlyTxs = ArrayList<TransactionRecord>()
+    var monthlyExpBase = 0L
+    var monthlyIncBase = 0L
+    var monthlyExpTotalOverallBudget = 0L
+
+    val overallBudget = budgets.firstOrNull {
+        it.scope == BudgetScope.OVERALL &&
+            it.year == selectedPeriod.year &&
+            it.month == selectedPeriod.month
+    }
+    val categoryBudgets = budgets.filter {
+        it.scope == BudgetScope.CATEGORY &&
+            it.year == selectedPeriod.year &&
+            it.month == selectedPeriod.month
+    }
+
+    transactions.forEach { tx ->
+        val srcAcc = accountsMap[tx.accountId]
+        if (srcAcc != null) {
+            txCountByAcc[srcAcc.id] = (txCountByAcc[srcAcc.id] ?: 0) + 1
+            val delta = if (srcAcc.type.isLiability) {
+                when (tx.type) {
+                    TransactionType.EXPENSE -> tx.amountMinor
+                    TransactionType.INCOME -> -tx.amountMinor
+                    TransactionType.TRANSFER -> tx.amountMinor
+                }
+            } else {
+                when (tx.type) {
+                    TransactionType.EXPENSE -> -tx.amountMinor
+                    TransactionType.INCOME -> tx.amountMinor
+                    TransactionType.TRANSFER -> -tx.amountMinor
+                }
+            }
+            balanceDeltaByAcc[srcAcc.id] = (balanceDeltaByAcc[srcAcc.id] ?: 0L) + delta
+        }
+
+        val destId = tx.destinationAccountId
+        if (tx.type == TransactionType.TRANSFER && destId != null) {
+            val destAcc = accountsMap[destId]
+            if (destAcc != null) {
+                if (destId != tx.accountId) {
+                    txCountByAcc[destId] = (txCountByAcc[destId] ?: 0) + 1
+                }
+                val destDelta = if (destAcc.type.isLiability) -tx.amountMinor else tx.amountMinor
+                balanceDeltaByAcc[destId] = (balanceDeltaByAcc[destId] ?: 0L) + destDelta
+            }
+        }
+
+        val txPeriod = DateFormatters.monthPeriodOf(tx.dateMillis)
+        periodSet.add(txPeriod)
+        if (txPeriod == selectedPeriod) {
+            monthlyTxs.add(tx)
+            val baseVal = toBase(tx.amountMinor, tx.currencyCode) ?: 0L
+            when (tx.type) {
+                TransactionType.EXPENSE -> {
+                    monthlyExpBase += baseVal
+                    if (overallBudget != null) {
+                        val inBudCurr = when (val c = MoneyFormatter.convertMinor(tx.amountMinor, tx.currencyCode, overallBudget.currencyCode)) {
+                            is ConversionResult.Available -> c.convertedMinor
+                            is ConversionResult.Unavailable -> 0L
+                        }
+                        monthlyExpTotalOverallBudget += inBudCurr
+                    }
+                }
+                TransactionType.INCOME -> monthlyIncBase += baseVal
+                TransactionType.TRANSFER -> Unit
+            }
+        }
+    }
+
+    val availablePeriods = periodSet.sortedWith(
+        compareByDescending<MonthPeriod> { it.year }.thenByDescending { it.month }
+    )
+
+    var totalAssets = 0L
+    var totalLiabilities = 0L
+    val accountSummaries = accounts.map { acc ->
+        val calcBalance = acc.openingBalanceMinor + (balanceDeltaByAcc[acc.id] ?: 0L)
+        val convertedBase = toBase(calcBalance, acc.currencyCode)
+        if (!acc.isArchived) {
+            if (acc.type.isLiability) {
+                totalLiabilities += (convertedBase ?: 0L)
+            } else {
+                totalAssets += (convertedBase ?: 0L)
+            }
+        }
+        AccountSummary(
+            account = acc,
+            calculatedBalanceMinor = calcBalance,
+            convertedBaseMinor = convertedBase,
+            transactionCount = txCountByAcc[acc.id] ?: 0,
+        )
+    }
+
+    val overallBudgetSummary = overallBudget?.let { b ->
+        val remaining = b.limitMinor - monthlyExpTotalOverallBudget
+        val progress = if (b.limitMinor > 0L) monthlyExpTotalOverallBudget.toFloat() / b.limitMinor.toFloat() else 0f
+        BudgetSummary(
+            budget = b,
+            category = null,
+            spentMinor = monthlyExpTotalOverallBudget,
+            remainingMinor = remaining,
+            progress = progress,
+        )
+    }
+
+    val categoryBudgetSummaries = categoryBudgets.map { b ->
+        val spentInBudgetCurrency = monthlyTxs
+            .asSequence()
+            .filter { it.type == TransactionType.EXPENSE && it.categoryId == b.categoryId }
+            .sumOf { tx ->
+                when (val c = MoneyFormatter.convertMinor(tx.amountMinor, tx.currencyCode, b.currencyCode)) {
+                    is ConversionResult.Available -> c.convertedMinor
+                    is ConversionResult.Unavailable -> 0L
+                }
+            }
+        val remaining = b.limitMinor - spentInBudgetCurrency
+        val progress = if (b.limitMinor > 0L) spentInBudgetCurrency.toFloat() / b.limitMinor.toFloat() else 0f
+        BudgetSummary(
+            budget = b,
+            category = categoriesMap[b.categoryId],
+            spentMinor = spentInBudgetCurrency,
+            remainingMinor = remaining,
+            progress = progress,
+        )
+    }
+
+    val remainingOverallBudgetBaseMinor = overallBudgetSummary?.let { summary ->
+        toBase(summary.remainingMinor, summary.budget.currencyCode)
+    }
+
+    return SpendlyUiState(
+        isLoading = isLoading,
+        syncError = syncError,
+        isSyncing = isSyncing,
+        onboardingComplete = profile?.onboardingComplete ?: false,
+        defaultCurrencyCode = defaultCurrencyCode,
+        selectedLanguage = profile?.selectedLanguage ?: "English",
+        themeMode = profile?.themeMode ?: ThemeMode.LIGHT,
+        profileName = profile?.profileName ?: initialDisplayName,
+        budgetAlertsEnabled = profile?.budgetAlertsEnabled ?: true,
+        weeklyDigestEnabled = profile?.weeklyDigestEnabled ?: true,
+        dailyReminderEnabled = profile?.dailyReminderEnabled ?: false,
+        privacyHideBalances = profile?.privacyHideBalances ?: false,
+        isPreviewDataActive = profile?.isPreviewDataActive ?: false,
+        selectedPeriod = selectedPeriod,
+        homeFilter = homeFilter,
+        accounts = accounts,
+        categories = mergedCategories,
+        transactions = transactions,
+        budgets = budgets,
+        lastDeletedTransaction = lastDeletedTransaction,
+        activityFilterPeriod = activityFilterPeriod,
+        activityFilterCategoryId = activityFilterCategoryId,
+        activityFilterAccountId = activityFilterAccountId,
+        activityFilterType = activityFilterType,
+        activitySearchQuery = activitySearchQuery,
+        activitySortOption = activitySortOption,
+        reportPeriod = reportPeriod,
+        accountsMap = accountsMap,
+        categoriesMap = categoriesMap,
+        availablePeriods = availablePeriods,
+        activeAccounts = activeAccounts,
+        archivedAccounts = archivedAccounts,
+        accountSummaries = accountSummaries,
+        totalAssetsBaseMinor = totalAssets,
+        totalCreditOutstandingBaseMinor = totalLiabilities,
+        totalNetBalanceBaseMinor = totalAssets - totalLiabilities,
+        monthlyTransactions = monthlyTxs,
+        monthlyExpensesBaseMinor = monthlyExpBase,
+        monthlyIncomeBaseMinor = monthlyIncBase,
+        monthlyNetCashFlowBaseMinor = monthlyIncBase - monthlyExpBase,
+        overallBudgetSummary = overallBudgetSummary,
+        categoryBudgetSummaries = categoryBudgetSummaries,
+        remainingOverallBudgetBaseMinor = remainingOverallBudgetBaseMinor,
+    )
+}
+

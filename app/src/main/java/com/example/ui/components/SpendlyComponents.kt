@@ -6,9 +6,10 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,53 +17,39 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.CompareArrows
-import androidx.compose.material.icons.automirrored.rounded.ShowChart
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.rounded.AccountBalance
+import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CreditCard
-import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.ExpandMore
-import androidx.compose.material.icons.rounded.Flight
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.LaptopMac
-import androidx.compose.material.icons.rounded.LocalHospital
 import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.PieChart
 import androidx.compose.material.icons.rounded.ReceiptLong
-import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.Savings
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.ShoppingBag
-import androidx.compose.material.icons.rounded.ShoppingCart
 import androidx.compose.material.icons.rounded.Smartphone
 import androidx.compose.material.icons.rounded.Wallet
 import androidx.compose.material.icons.rounded.WarningAmber
-import androidx.compose.material.icons.rounded.Work
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -73,8 +60,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -90,18 +81,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.R
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.model.AccountSummary
 import com.example.model.AccountType
 import com.example.model.BudgetSummary
@@ -131,20 +123,33 @@ enum class SpendlyTopTab(
     MORE("more", "More", Icons.Rounded.GridView, Icons.Outlined.GridView, "nav_more"),
 }
 
-fun accountGradientColors(type: AccountType): Pair<Color, Color> = when (type) {
-    AccountType.BANK_ACCOUNT -> Color(0xFF072E24) to Color(0xFF136A53)
-    AccountType.DEBIT_CARD -> Color(0xFF16252B) to Color(0xFF2B4C59)
-    AccountType.CREDIT_CARD -> Color(0xFF1D1B2A) to Color(0xFF423A61)
-    AccountType.PREPAID_CARD -> Color(0xFF784506) to Color(0xFFC27803)
-    AccountType.CASH_WALLET -> Color(0xFF0A4D38) to Color(0xFF178962)
-    AccountType.DIGITAL_WALLET -> Color(0xFF0A4358) to Color(0xFF0E7490)
-    AccountType.SAVINGS_ACCOUNT -> Color(0xFF0B3B37) to Color(0xFF0F766E)
-    AccountType.CUSTOM -> Color(0xFF5A1D33) to Color(0xFF9F2D54)
+fun accountAccentPair(type: AccountType, isDark: Boolean = false): Pair<Color, Color> {
+    if (isDark) {
+        return when (type) {
+            AccountType.BANK_ACCOUNT -> Color(0xFF7CB4E8) to Color(0xFF1A3147)
+            AccountType.DEBIT_CARD -> Color(0xFF67C9D6) to Color(0xFF15373D)
+            AccountType.CREDIT_CARD -> Color(0xFFB4A7EB) to Color(0xFF2B2547)
+            AccountType.PREPAID_CARD -> Color(0xFFEBB04D) to Color(0xFF3E2D12)
+            AccountType.CASH_WALLET -> Color(0xFF52D1A2) to Color(0xFF143A2C)
+            AccountType.DIGITAL_WALLET -> Color(0xFF6AB3E8) to Color(0xFF163348)
+            AccountType.SAVINGS_ACCOUNT -> Color(0xFF5AD6B3) to Color(0xFF173D34)
+            AccountType.CUSTOM -> Color(0xFFF27C89) to Color(0xFF451C22)
+        }
+    }
+    return when (type) {
+        AccountType.BANK_ACCOUNT -> Color(0xFF1D4E89) to Color(0xFFE0EAF6)
+        AccountType.DEBIT_CARD -> Color(0xFF156778) to Color(0xFFDDF0F4)
+        AccountType.CREDIT_CARD -> Color(0xFF4F4698) to Color(0xFFEAE8F8)
+        AccountType.PREPAID_CARD -> Color(0xFF9A5B00) to Color(0xFFFDF0D5)
+        AccountType.CASH_WALLET -> Color(0xFF0D6E4E) to Color(0xFFDCF3EA)
+        AccountType.DIGITAL_WALLET -> Color(0xFF1D5A8A) to Color(0xFFE1EFFA)
+        AccountType.SAVINGS_ACCOUNT -> Color(0xFF0F5C4D) to Color(0xFFDCEEE9)
+        AccountType.CUSTOM -> Color(0xFFB42334) to Color(0xFFFCE6E9)
+    }
 }
 
 @Composable
 fun SpendlyBrandLogo(modifier: Modifier = Modifier) {
-    val semantic = SpendlyTheme.semantic
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -152,182 +157,76 @@ fun SpendlyBrandLogo(modifier: Modifier = Modifier) {
     ) {
         Box(
             modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(
-                    Brush.linearGradient(
-                        listOf(semantic.heroCardStart, semantic.heroCardMid, semantic.heroCardEnd),
-                    )
-                ),
+                .size(34.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(MaterialTheme.colorScheme.primary),
             contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(7.dp)
-                    .align(Alignment.TopEnd)
-                    .offset(x = (-5).dp, y = 5.dp)
-                    .clip(CircleShape)
-                    .background(semantic.heroGold),
-            )
             Icon(
-                imageVector = Icons.Outlined.AccountBalanceWallet,
-                contentDescription = "Spendly logo mark",
-                tint = Color.White,
-                modifier = Modifier.size(19.dp),
+                imageVector = Icons.Rounded.AccountBalanceWallet,
+                contentDescription = "Spendly emblem",
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(18.dp),
             )
         }
-        Column {
-            Text(
-                text = "Spendly",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
+        Text(
+            text = "Spendly",
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 
+/**
+ * Clean native Material 3 bottom navigation bar: tabs navigate cleanly without inline action orbs.
+ */
 @Composable
 fun SpendlyBottomNavigationBar(
     currentRoute: String,
     onSelectTab: (SpendlyTopTab) -> Unit,
-    onAddClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val semantic = SpendlyTheme.semantic
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 10.dp,
-    ) {
-        Column {
-            HorizontalDivider(
-                thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.navigationBars)
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceAround,
-            ) {
-                BottomTabItem(
-                    tab = SpendlyTopTab.HOME,
-                    selected = currentRoute == SpendlyTopTab.HOME.route,
-                    onClick = { onSelectTab(SpendlyTopTab.HOME) },
-                    modifier = Modifier.weight(1f),
-                )
-                BottomTabItem(
-                    tab = SpendlyTopTab.ACTIVITY,
-                    selected = currentRoute == SpendlyTopTab.ACTIVITY.route,
-                    onClick = { onSelectTab(SpendlyTopTab.ACTIVITY) },
-                    modifier = Modifier.weight(1f),
-                )
-
-                // Sleek Centered Emerald Seal Action Button
-                Box(
-                    modifier = Modifier
-                        .weight(0.9f)
-                        .padding(horizontal = 4.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Surface(
-                        onClick = onAddClick,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .minimumInteractiveComponentSize()
-                            .testTag("nav_add_button"),
-                        shape = RoundedCornerShape(16.dp),
-                        shadowElevation = 4.dp,
-                        color = Color.Transparent,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(semantic.heroCardStart, semantic.heroCardMid, semantic.heroCardEnd),
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Add,
-                                contentDescription = "Add transaction",
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp),
-                            )
-                        }
-                    }
-                }
-
-                BottomTabItem(
-                    tab = SpendlyTopTab.BUDGETS,
-                    selected = currentRoute == SpendlyTopTab.BUDGETS.route,
-                    onClick = { onSelectTab(SpendlyTopTab.BUDGETS) },
-                    modifier = Modifier.weight(1f),
-                )
-                BottomTabItem(
-                    tab = SpendlyTopTab.MORE,
-                    selected = currentRoute == SpendlyTopTab.MORE.route,
-                    onClick = { onSelectTab(SpendlyTopTab.MORE) },
-                    modifier = Modifier.weight(1f),
+    Column(modifier = modifier.fillMaxWidth()) {
+        HorizontalDivider(
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant,
+        )
+        NavigationBar(
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
+        ) {
+            SpendlyTopTab.entries.forEach { tab ->
+                val selected = currentRoute == tab.route
+                NavigationBarItem(
+                    selected = selected,
+                    onClick = { onSelectTab(tab) },
+                    icon = {
+                        Icon(
+                            imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
+                            contentDescription = tab.label,
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = tab.label,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                    modifier = Modifier.testTag(tab.testTag),
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun BottomTabItem(
-    tab: SpendlyTopTab,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val pillColor by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-        label = "tabPill",
-    )
-    val contentColor = if (selected) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
-            .minimumInteractiveComponentSize()
-            .padding(vertical = 3.dp)
-            .testTag(tab.testTag),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(999.dp))
-                .background(pillColor)
-                .padding(horizontal = 14.dp, vertical = 4.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
-                contentDescription = tab.label,
-                tint = contentColor,
-                modifier = Modifier.size(21.dp),
-            )
-        }
-        Text(
-            text = tab.label,
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-            ),
-            color = contentColor,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
 
@@ -338,38 +237,52 @@ fun SpendlySideNavigationRail(
     onAddClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    NavigationRail(
-        modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.surface,
-        header = {
-            Spacer(Modifier.height(12.dp))
-            FloatingActionButton(
-                onClick = onAddClick,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 3.dp),
-                modifier = Modifier.testTag("rail_add_button"),
-            ) {
-                Icon(Icons.Rounded.Add, contentDescription = "Add transaction")
+    Row(modifier = modifier) {
+        NavigationRail(
+            containerColor = MaterialTheme.colorScheme.surface,
+            header = {
+                Spacer(Modifier.height(14.dp))
+                FloatingActionButton(
+                    onClick = onAddClick,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = RoundedCornerShape(14.dp),
+                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 2.dp),
+                    modifier = Modifier.testTag("rail_add_button"),
+                ) {
+                    Icon(Icons.Rounded.Add, contentDescription = "Add transaction")
+                }
+                Spacer(Modifier.height(14.dp))
+            },
+        ) {
+            SpendlyTopTab.entries.forEach { tab ->
+                val selected = currentRoute == tab.route
+                NavigationRailItem(
+                    selected = selected,
+                    onClick = { onSelectTab(tab) },
+                    icon = {
+                        Icon(
+                            imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
+                            contentDescription = tab.label,
+                        )
+                    },
+                    label = { Text(tab.label) },
+                    colors = NavigationRailItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                    modifier = Modifier.testTag("rail_${tab.route}"),
+                )
             }
-            Spacer(Modifier.height(12.dp))
-        },
-    ) {
-        SpendlyTopTab.entries.forEach { tab ->
-            val selected = currentRoute == tab.route
-            NavigationRailItem(
-                selected = selected,
-                onClick = { onSelectTab(tab) },
-                icon = {
-                    Icon(
-                        imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
-                        contentDescription = tab.label,
-                    )
-                },
-                label = { Text(tab.label) },
-                modifier = Modifier.testTag("rail_${tab.route}"),
-            )
         }
+        Box(
+            modifier = Modifier
+                .width(0.5.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant),
+        )
     }
 }
 
@@ -379,6 +292,7 @@ fun MonthSelectorChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val semantic = SpendlyTheme.semantic
     Surface(
         onClick = onClick,
         modifier = modifier
@@ -386,10 +300,10 @@ fun MonthSelectorChip(
             .testTag("month_selector_button"),
         shape = RoundedCornerShape(999.dp),
         color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 2.dp,
+        border = BorderStroke(1.dp, semantic.surfaceBorder),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
+            modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
@@ -414,16 +328,20 @@ fun MonthSelectorChip(
     }
 }
 
+/**
+ * Grouped inset surface following the single-elevation rule (clean hairline border, zero drop shadow).
+ */
 @Composable
 fun LedgerGroupCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val semantic = SpendlyTheme.semantic
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(SpendlyTokens.CardRadius),
         color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 2.dp,
+        border = BorderStroke(1.dp, semantic.surfaceBorder),
     ) {
         Column(content = content)
     }
@@ -452,7 +370,7 @@ fun TransactionLedgerRow(
     val (iconTint, iconContainer) = when (transaction.type) {
         TransactionType.TRANSFER -> semantic.transfer to semantic.transferContainer
         TransactionType.INCOME -> semantic.income to semantic.incomeContainer
-        TransactionType.EXPENSE -> categoryColorPair(category?.iconKey)
+        TransactionType.EXPENSE -> categoryColorPair(category?.iconKey, semantic.isDark)
     }
     val icon = when (transaction.type) {
         TransactionType.TRANSFER -> Icons.AutoMirrored.Rounded.CompareArrows
@@ -466,9 +384,9 @@ fun TransactionLedgerRow(
     }
     val subtitleText = when {
         transaction.type == TransactionType.TRANSFER && transaction.isCreditCardRepayment ->
-            "$accountName → ${destinationAccountName ?: "Card"} • Repayment"
+            "$accountName -> ${destinationAccountName ?: "Card"} • Repayment"
         transaction.type == TransactionType.TRANSFER ->
-            "$accountName → ${destinationAccountName ?: "Account"}"
+            "$accountName -> ${destinationAccountName ?: "Account"}"
         else -> "${category?.name ?: "Uncategorized"} • $accountName"
     }
 
@@ -482,8 +400,8 @@ fun TransactionLedgerRow(
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .size(40.dp)
+                    .clip(CircleShape)
                     .background(iconContainer),
                 contentAlignment = Alignment.Center,
             ) {
@@ -491,11 +409,11 @@ fun TransactionLedgerRow(
                     imageVector = icon,
                     contentDescription = category?.name ?: transaction.type.label,
                     tint = iconTint,
-                    modifier = Modifier.size(21.dp),
+                    modifier = Modifier.size(19.dp),
                 )
             }
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = transaction.description.ifBlank { transaction.merchant.ifBlank { transaction.type.label } },
                     style = MaterialTheme.typography.titleSmall,
@@ -503,7 +421,6 @@ fun TransactionLedgerRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(Modifier.height(2.dp))
                 Text(
                     text = "$subtitleText • ${DateFormatters.formatShortDate(transaction.dateMillis)}",
                     style = MaterialTheme.typography.bodySmall,
@@ -513,7 +430,7 @@ fun TransactionLedgerRow(
                 )
             }
 
-            Column(horizontalAlignment = Alignment.End) {
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = if (hideBalances) "••••" else "$amountPrefix${MoneyFormatter.formatMinor(transaction.amountMinor, transaction.currencyCode)}",
                     style = MoneyRowStyle,
@@ -534,11 +451,30 @@ fun TransactionLedgerRow(
         }
     }
 
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val rowScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.985f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "txRowScale",
+    )
+
     if (grouped) {
         Box(
             modifier = modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .graphicsLayer {
+                    scaleX = rowScale
+                    scaleY = rowScale
+                }
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                )
                 .minimumInteractiveComponentSize()
                 .testTag("tx_row_${transaction.id}"),
         ) {
@@ -547,13 +483,18 @@ fun TransactionLedgerRow(
     } else {
         Surface(
             onClick = onClick,
+            interactionSource = interactionSource,
             modifier = modifier
                 .fillMaxWidth()
+                .graphicsLayer {
+                    scaleX = rowScale
+                    scaleY = rowScale
+                }
                 .minimumInteractiveComponentSize()
                 .testTag("tx_row_${transaction.id}"),
             shape = RoundedCornerShape(SpendlyTokens.RowRadius),
             color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 2.dp,
+            border = BorderStroke(1.dp, semantic.surfaceBorder),
         ) {
             rowContent()
         }
@@ -579,7 +520,7 @@ fun BudgetProgressCard(
         else -> semantic.income
     }
     val (catTint, catBg) = if (summary.category != null) {
-        categoryColorPair(summary.category.iconKey)
+        categoryColorPair(summary.category.iconKey, semantic.isDark)
     } else {
         MaterialTheme.colorScheme.primary to MaterialTheme.colorScheme.primaryContainer
     }
@@ -591,10 +532,10 @@ fun BudgetProgressCard(
             .testTag("budget_card_${summary.budget.id}"),
         shape = RoundedCornerShape(SpendlyTokens.CardRadius),
         color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 2.dp,
+        border = BorderStroke(1.dp, semantic.surfaceBorder),
     ) {
         Column(
-            modifier = Modifier.padding(18.dp),
+            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(
@@ -609,8 +550,8 @@ fun BudgetProgressCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
-                            .clip(RoundedCornerShape(13.dp))
+                            .size(40.dp)
+                            .clip(CircleShape)
                             .background(catBg),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -618,7 +559,7 @@ fun BudgetProgressCard(
                             imageVector = categoryIconFor(summary.category?.iconKey ?: "pie"),
                             contentDescription = summary.budget.name,
                             tint = catTint,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(19.dp),
                         )
                     }
                     Column {
@@ -641,18 +582,18 @@ fun BudgetProgressCard(
                         color = if (summary.isOverspent) semantic.expenseContainer else semantic.warningContainer,
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.WarningAmber,
-                                contentDescription = "Budget warning",
+                                contentDescription = "Budget alert",
                                 tint = if (summary.isOverspent) semantic.expense else semantic.warning,
                                 modifier = Modifier.size(14.dp),
                             )
                             Text(
-                                text = if (summary.isOverspent) "Over budget" else "Near limit",
+                                text = if (summary.isOverspent) "Over" else "Near limit",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = if (summary.isOverspent) semantic.expense else semantic.warning,
                             )
@@ -667,7 +608,7 @@ fun BudgetProgressCard(
                             text = "${(summary.progress * 100).toInt()}% used",
                             style = MaterialTheme.typography.labelSmall,
                             color = semantic.income,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         )
                     }
                 }
@@ -676,20 +617,16 @@ fun BudgetProgressCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(10.dp)
+                    .height(6.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainer),
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow),
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(animatedProgress)
-                        .height(10.dp)
+                        .height(6.dp)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(barColor.copy(alpha = 0.8f), barColor)
-                            )
-                        ),
+                        .background(barColor),
                 )
             }
 
@@ -728,7 +665,11 @@ fun AccountLedgerCard(
     val account = summary.account
     val semantic = SpendlyTheme.semantic
     val isCredit = account.type.isLiability
-    val (gradStart, gradEnd) = accountGradientColors(account.type)
+    val context = LocalContext.current
+    val artVersion by com.example.util.CardArtStore.version.collectAsStateWithLifecycle()
+    val artPrefs = remember(account.id, artVersion) {
+        com.example.util.CardArtStore.getCardArt(context, account.id)
+    }
 
     Surface(
         onClick = onClick,
@@ -737,7 +678,7 @@ fun AccountLedgerCard(
             .testTag("account_card_${account.id}"),
         shape = RoundedCornerShape(SpendlyTokens.CardRadius),
         color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 2.dp,
+        border = BorderStroke(1.dp, semantic.surfaceBorder),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -753,28 +694,11 @@ fun AccountLedgerCard(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.weight(1f),
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(15.dp))
-                            .background(Brush.linearGradient(listOf(gradStart, gradEnd))),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Canvas(modifier = Modifier.matchParentSize()) {
-                            drawCircle(
-                                color = Color.White.copy(alpha = 0.12f),
-                                radius = size.minDimension * 0.55f,
-                                center = Offset(size.width * 0.88f, size.height * 0.12f),
-                            )
-                        }
-                        Icon(
-                            imageVector = accountTypeIcon(account.type),
-                            contentDescription = account.type.displayName,
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
-                    Column {
+                    WalletMiniCardThumbnail(
+                        account = account,
+                        artPrefs = artPrefs,
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
                             text = account.name,
                             style = MaterialTheme.typography.titleMedium,
@@ -803,19 +727,12 @@ fun AccountLedgerCard(
                     }
                 }
 
-                Column(horizontalAlignment = Alignment.End) {
-                    Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = if (isCredit) semantic.warningContainer else semantic.incomeContainer,
-                    ) {
-                        Text(
-                            text = if (isCredit) "DUE" else "BALANCE",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isCredit) semantic.warning else semantic.income,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        )
-                    }
-                    Spacer(Modifier.height(4.dp))
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = if (isCredit) "Outstanding" else "Balance",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isCredit) semantic.warning else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     Text(
                         text = if (hideBalances) "••••" else MoneyFormatter.formatMinor(summary.calculatedBalanceMinor, account.currencyCode),
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -839,14 +756,14 @@ fun AccountLedgerCard(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(7.dp)
+                            .height(6.dp)
                             .clip(RoundedCornerShape(999.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainer),
+                            .background(MaterialTheme.colorScheme.surfaceContainerLow),
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(utilization)
-                                .height(7.dp)
+                                .height(6.dp)
                                 .clip(RoundedCornerShape(999.dp))
                                 .background(
                                     if (utilization >= 0.8f) semantic.expense else semantic.warning
@@ -874,6 +791,9 @@ fun AccountLedgerCard(
     }
 }
 
+/**
+ * Clean geometric empty state with light/dark adaptive ledger diagram, honest copy, and clear action.
+ */
 @Composable
 fun EmptyLedgerState(
     title: String,
@@ -884,26 +804,50 @@ fun EmptyLedgerState(
     secondaryActionLabel: String? = null,
     onSecondaryActionClick: (() -> Unit)? = null,
 ) {
+    val semantic = SpendlyTheme.semantic
+    val primary = MaterialTheme.colorScheme.primary
+    val container = MaterialTheme.colorScheme.primaryContainer
+    val lineColor = MaterialTheme.colorScheme.outlineVariant
+
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(SpendlyTokens.CardRadius),
         color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 2.dp,
+        border = BorderStroke(1.dp, semantic.surfaceBorder),
     ) {
         Column(
-            modifier = Modifier.padding(22.dp),
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.img_empty_ledger),
-                contentDescription = "Empty ledger illustration",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp)
-                    .clip(RoundedCornerShape(16.dp)),
-                contentScale = ContentScale.Crop,
-            )
+            Canvas(modifier = Modifier.size(64.dp)) {
+                drawRoundRect(
+                    color = container,
+                    topLeft = Offset.Zero,
+                    size = size,
+                    cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx()),
+                )
+                val pad = 16.dp.toPx()
+                val w = size.width - pad * 2
+                drawRoundRect(
+                    color = primary,
+                    topLeft = Offset(pad, pad + 2.dp.toPx()),
+                    size = Size(w * 0.55f, 5.dp.toPx()),
+                    cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx()),
+                )
+                drawRoundRect(
+                    color = lineColor,
+                    topLeft = Offset(pad, pad + 13.dp.toPx()),
+                    size = Size(w, 4.dp.toPx()),
+                    cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx()),
+                )
+                drawRoundRect(
+                    color = lineColor,
+                    topLeft = Offset(pad, pad + 23.dp.toPx()),
+                    size = Size(w * 0.78f, 4.dp.toPx()),
+                    cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx()),
+                )
+            }
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
@@ -916,13 +860,14 @@ fun EmptyLedgerState(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
+            Spacer(Modifier.height(2.dp))
             Button(
                 onClick = onActionClick,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
                     .testTag("empty_state_primary_cta"),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(12.dp),
             ) {
                 Text(actionLabel)
             }
@@ -932,7 +877,7 @@ fun EmptyLedgerState(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                 ) {
                     Text(secondaryActionLabel)
                 }
@@ -951,6 +896,7 @@ fun SearchableCurrencySheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var query by remember { mutableStateOf("") }
     var pendingSelected by remember { mutableStateOf(CurrencyCatalog.findByCode(currentCurrencyCode)) }
+    val semantic = SpendlyTheme.semantic
 
     val filtered = remember(query) {
         val q = query.trim().lowercase()
@@ -994,14 +940,14 @@ fun SearchableCurrencySheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("currency_search_input"),
-                placeholder = { Text("Search code, symbol, or country...") },
+                placeholder = { Text("Search code, symbol, or country") },
                 leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                 singleLine = true,
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    unfocusedBorderColor = Color.Transparent,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedBorderColor = semantic.surfaceBorder,
                 ),
             )
 
@@ -1009,7 +955,7 @@ fun SearchableCurrencySheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(300.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
                 contentPadding = PaddingValues(vertical = 4.dp),
             ) {
                 items(filtered, key = { it.code }) { spec ->
@@ -1019,7 +965,7 @@ fun SearchableCurrencySheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("currency_option_${spec.code}"),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(12.dp),
                         color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
                         border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
                     ) {
@@ -1034,7 +980,7 @@ fun SearchableCurrencySheet(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(38.dp)
+                                        .size(36.dp)
                                         .clip(CircleShape)
                                         .background(MaterialTheme.colorScheme.surface),
                                     contentAlignment = Alignment.Center,
@@ -1081,9 +1027,9 @@ fun SearchableCurrencySheet(
                     .fillMaxWidth()
                     .height(50.dp)
                     .testTag("confirm_currency_button"),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
             ) {
-                Text("Confirm ${pendingSelected.code} (${pendingSelected.symbol})")
+                Text("Use ${pendingSelected.code} (${pendingSelected.symbol})")
             }
         }
     }
@@ -1111,7 +1057,7 @@ fun MonthPickerSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("month_option_${period.year}_${period.month}"),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
                         color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
                         border = if (selected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
                     ) {
@@ -1140,20 +1086,7 @@ fun MonthPickerSheet(
     )
 }
 
-fun categoryIconFor(key: String?): ImageVector = when (key) {
-    "groceries" -> Icons.Rounded.ShoppingCart
-    "dining" -> Icons.Rounded.Restaurant
-    "housing" -> Icons.Rounded.Home
-    "transport" -> Icons.Rounded.DirectionsCar
-    "utilities" -> Icons.Rounded.Bolt
-    "shopping" -> Icons.Rounded.ShoppingBag
-    "health" -> Icons.Rounded.LocalHospital
-    "travel" -> Icons.Rounded.Flight
-    "salary" -> Icons.Rounded.Work
-    "freelance" -> Icons.Rounded.LaptopMac
-    "interest" -> Icons.AutoMirrored.Rounded.ShowChart
-    else -> Icons.Rounded.PieChart
-}
+fun categoryIconFor(key: String?): ImageVector = extendedCategoryIconFor(key)
 
 fun accountTypeIcon(type: AccountType): ImageVector = when (type) {
     AccountType.BANK_ACCOUNT -> Icons.Rounded.AccountBalance

@@ -55,6 +55,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -64,7 +65,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -73,6 +73,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.model.CsvImportRow
 import com.example.model.TransactionType
+import com.example.ui.components.LedgerGroupCard
 import com.example.ui.components.SearchableCurrencySheet
 import com.example.ui.components.categoryIconFor
 import com.example.ui.theme.SpendlyTheme
@@ -114,89 +115,96 @@ fun MoreScreen(
                 .widthIn(max = 860.dp)
                 .fillMaxSize()
                 .testTag("more_screen_list"),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             item {
-                Column {
-                    Text("More", style = MaterialTheme.typography.headlineMedium)
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        text = "Accounts, analytics, data portability, and preferences",
+                        text = "More",
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
+                    Text(
+                        text = "Accounts, reports, data portability, and preferences",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
-            // Editorial Profile Summary Banner
+            // Profile Summary Card (Nordic Spruce Ledger Hero)
             item {
                 Surface(
                     onClick = { onNavigateSettingsDetail("profile") },
                     shape = RoundedCornerShape(SpendlyTokens.HeroRadius),
-                    color = Color.Transparent,
-                    shadowElevation = 4.dp,
+                    color = semantic.heroSurface,
+                    border = BorderStroke(1.dp, semantic.heroBorder),
                 ) {
-                    Box(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(semantic.heroCardStart, semantic.heroCardMid, semantic.heroCardEnd)
-                                )
-                            )
-                            .padding(18.dp),
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                modifier = Modifier.weight(1f),
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape)
+                                        .background(semantic.onHeroWell),
+                                    contentAlignment = Alignment.Center,
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(46.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.White.copy(alpha = 0.16f)),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Text(
-                                            text = initials,
-                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                            color = semantic.heroAccent,
-                                        )
-                                    }
-                                    Column {
-                                        Text(
-                                            text = uiState.profileName,
-                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                            color = semantic.onHeroCard,
-                                        )
-                                        Text(
-                                            text = "${uiState.defaultCurrencyCode} Base • ${uiState.selectedLanguage}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = semantic.onHeroCardMuted,
-                                        )
-                                    }
+                                    Text(
+                                        text = initials,
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = semantic.heroAccent,
+                                    )
                                 }
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = uiState.profileName,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = semantic.onHeroSurface,
+                                    )
+                                    Text(
+                                        text = "${uiState.defaultCurrencyCode} Base • ${uiState.selectedLanguage}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = semantic.onHeroSurfaceMuted,
+                                    )
+                                }
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(semantic.onHeroWell),
+                                contentAlignment = Alignment.Center,
+                            ) {
                                 Icon(
                                     imageVector = Icons.Rounded.ChevronRight,
                                     contentDescription = "Edit profile",
-                                    tint = semantic.onHeroCardMuted,
+                                    tint = semantic.onHeroSurface,
+                                    modifier = Modifier.size(18.dp),
                                 )
                             }
+                        }
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                ProfileStatPill("Accounts", "${uiState.activeAccounts.size}", Modifier.weight(1f))
-                                ProfileStatPill("Entries", "${uiState.transactions.size}", Modifier.weight(1f))
-                                ProfileStatPill("Budgets", "${uiState.budgets.size}", Modifier.weight(1f))
-                            }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            ProfileStatPill("Accounts", "${uiState.activeAccounts.size}", Modifier.weight(1f))
+                            ProfileStatPill("Entries", "${uiState.transactions.size}", Modifier.weight(1f))
+                            ProfileStatPill("Budgets", "${uiState.budgets.size}", Modifier.weight(1f))
                         }
                     }
                 }
@@ -204,7 +212,7 @@ fun MoreScreen(
 
             // Financial Management Group
             item {
-                MoreSectionGroup(title = "FINANCE & DATA") {
+                MoreSectionGroup(title = "Finance & Data") {
                     MoreMenuRow(
                         icon = Icons.Rounded.AccountBalance,
                         iconTint = MaterialTheme.colorScheme.primary,
@@ -220,15 +228,15 @@ fun MoreScreen(
                         iconTint = semantic.warning,
                         iconBg = semantic.warningContainer,
                         title = "Reports & Analytics",
-                        subtitle = "Cash flow, category donut & trends",
+                        subtitle = "Cash flow, category breakdown & trends",
                         onClick = onNavigateReports,
                         testTag = "more_reports",
                     )
                     MoreDivider()
                     MoreMenuRow(
                         icon = Icons.Rounded.Category,
-                        iconTint = semantic.violet,
-                        iconBg = semantic.violetContainer,
+                        iconTint = semantic.slateAccent,
+                        iconBg = semantic.slateContainer,
                         title = "Categories",
                         subtitle = "${uiState.categories.size} expense & income categories",
                         onClick = onNavigateCategories,
@@ -249,7 +257,7 @@ fun MoreScreen(
 
             // Preferences Group
             item {
-                MoreSectionGroup(title = "PREFERENCES") {
+                MoreSectionGroup(title = "Preferences") {
                     MoreMenuRow(
                         icon = Icons.Rounded.CurrencyExchange,
                         iconTint = semantic.income,
@@ -285,7 +293,7 @@ fun MoreScreen(
                         iconTint = MaterialTheme.colorScheme.primary,
                         iconBg = MaterialTheme.colorScheme.primaryContainer,
                         title = "Security & Privacy",
-                        subtitle = "Local-first ledger • Hide balances option",
+                        subtitle = "Cloud sync • Hide balances option",
                         onClick = { onNavigateSettingsDetail("security") },
                         testTag = "more_security",
                     )
@@ -294,7 +302,7 @@ fun MoreScreen(
 
             // Profile & About Group
             item {
-                MoreSectionGroup(title = "PROFILE & SUPPORT") {
+                MoreSectionGroup(title = "Profile & Support") {
                     MoreMenuRow(
                         icon = Icons.Rounded.Person,
                         iconTint = semantic.transfer,
@@ -307,8 +315,8 @@ fun MoreScreen(
                     MoreDivider()
                     MoreMenuRow(
                         icon = Icons.AutoMirrored.Rounded.HelpOutline,
-                        iconTint = semantic.violet,
-                        iconBg = semantic.violetContainer,
+                        iconTint = semantic.slateAccent,
+                        iconBg = semantic.slateContainer,
                         title = "Help & Support",
                         subtitle = "Guides for CSV imports & credit cards",
                         onClick = { onNavigateSettingsDetail("support") },
@@ -320,7 +328,7 @@ fun MoreScreen(
                         iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
                         iconBg = MaterialTheme.colorScheme.surfaceContainer,
                         title = "About Spendly",
-                        subtitle = "Spendly v1.0 • Editorial Ledger",
+                        subtitle = "Spendly v1.0 • Personal Finance Ledger",
                         onClick = { onNavigateSettingsDetail("about") },
                         testTag = "more_about",
                     )
@@ -329,11 +337,7 @@ fun MoreScreen(
 
             // Sample Preview Data Switch for inspecting Empty vs Populated UI
             item {
-                Surface(
-                    shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-                    color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 2.dp,
-                ) {
+                LedgerGroupCard {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -341,10 +345,18 @@ fun MoreScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                            Text("Interactive Preview Ledger", style = MaterialTheme.typography.titleSmall)
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
                             Text(
-                                text = "Toggle off to inspect clean Empty States across all screens, or on to restore sample preview data.",
+                                text = "Interactive Preview Ledger",
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                text = "Toggle off to inspect empty states across screens, or on to restore sample preview data.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -372,22 +384,26 @@ private fun ProfileStatPill(
     val semantic = SpendlyTheme.semantic
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
-        color = Color.White.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(12.dp),
+        color = semantic.onHeroWell,
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = semantic.onHeroCard,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontFeatureSettings = "tnum",
+                ),
+                color = semantic.onHeroSurface,
             )
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = semantic.onHeroCardMuted,
+                color = semantic.onHeroSurfaceMuted,
             )
         }
     }
@@ -400,6 +416,7 @@ fun CategoriesScreen(
     onNavigateBack: () -> Unit,
     onAddCategory: (name: String, type: TransactionType, iconKey: String) -> Unit,
 ) {
+    val semantic = SpendlyTheme.semantic
     var showAddDialog by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
     var newType by remember { mutableStateOf(TransactionType.EXPENSE) }
@@ -412,7 +429,7 @@ fun CategoriesScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
-                title = { Text("Categories") },
+                title = { Text("Categories", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
@@ -422,10 +439,11 @@ fun CategoriesScreen(
                     Button(
                         onClick = { showAddDialog = true },
                         modifier = Modifier.padding(end = 12.dp),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(999.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     ) {
                         Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.padding(2.dp))
+                        Spacer(Modifier.size(4.dp))
                         Text("New")
                     }
                 },
@@ -433,23 +451,29 @@ fun CategoriesScreen(
         },
     ) { innerPadding ->
         Box(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
             contentAlignment = Alignment.TopCenter,
         ) {
             LazyColumn(
-                modifier = Modifier.widthIn(max = 860.dp).fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .widthIn(max = 860.dp)
+                    .fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(uiState.categories, key = { it.id }) { cat ->
-                    val (catTint, catBg) = categoryColorPair(cat.iconKey)
+                    val (catTint, catBg) = categoryColorPair(cat.iconKey, semantic.isDark)
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(SpendlyTokens.RowRadius),
                         color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 2.dp,
+                        border = BorderStroke(1.dp, semantic.surfaceBorder),
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
@@ -459,8 +483,8 @@ fun CategoriesScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(RoundedCornerShape(11.dp))
+                                        .size(40.dp)
+                                        .clip(CircleShape)
                                         .background(catBg),
                                     contentAlignment = Alignment.Center,
                                 ) {
@@ -472,8 +496,15 @@ fun CategoriesScreen(
                                     )
                                 }
                                 Column {
-                                    Text(cat.name, style = MaterialTheme.typography.titleSmall)
-                                    Text(cat.type.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        cat.name,
+                                        style = MaterialTheme.typography.titleSmall,
+                                    )
+                                    Text(
+                                        cat.type.label,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
                                 }
                             }
                             Surface(
@@ -484,7 +515,7 @@ fun CategoriesScreen(
                                     text = if (cat.isDefault) "Default" else "Custom",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                 )
                             }
                         }
@@ -499,19 +530,22 @@ fun CategoriesScreen(
             onDismissRequest = { showAddDialog = false },
             title = { Text("New Category") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(TransactionType.EXPENSE, TransactionType.INCOME).forEach { t ->
                             val active = newType == t
                             Surface(
                                 onClick = { newType = t },
-                                modifier = Modifier.weight(1f).height(40.dp),
-                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(42.dp),
+                                shape = RoundedCornerShape(10.dp),
                                 color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerLow,
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Text(
                                         t.label,
+                                        style = MaterialTheme.typography.labelLarge,
                                         color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                                     )
                                 }
@@ -528,7 +562,7 @@ fun CategoriesScreen(
                         isError = nameError != null,
                         supportingText = nameError?.let { err -> { Text(err) } },
                         singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(SpendlyTokens.InputRadius),
                     )
                 }
             },
@@ -543,12 +577,16 @@ fun CategoriesScreen(
                             showAddDialog = false
                         }
                     },
+                    shape = RoundedCornerShape(12.dp),
                 ) {
                     Text("Save")
                 }
             },
             dismissButton = {
-                OutlinedButton(onClick = { showAddDialog = false }) { Text("Cancel") }
+                OutlinedButton(
+                    onClick = { showAddDialog = false },
+                    shape = RoundedCornerShape(12.dp),
+                ) { Text("Cancel") }
             },
         )
     }
@@ -564,6 +602,7 @@ fun ImportExportScreen(
     onRestoreBackupSample: () -> Unit,
 ) {
     val context = LocalContext.current
+    val semantic = SpendlyTheme.semantic
     var wizardStep by remember { mutableIntStateOf(0) }
     var destAccountId by remember(uiState.activeAccounts) {
         mutableStateOf(uiState.activeAccounts.firstOrNull()?.id ?: "")
@@ -596,7 +635,7 @@ fun ImportExportScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
-                title = { Text("Import & Export") },
+                title = { Text("Import & Export", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
@@ -606,28 +645,31 @@ fun ImportExportScreen(
         },
     ) { innerPadding ->
         Box(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
             contentAlignment = Alignment.TopCenter,
         ) {
             LazyColumn(
-                modifier = Modifier.widthIn(max = 860.dp).fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
+                modifier = Modifier
+                    .widthIn(max = 860.dp)
+                    .fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 if (wizardStep == 0) {
                     item {
-                        Surface(
-                            shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-                            color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 2.dp,
-                        ) {
+                        LedgerGroupCard {
                             Column(
                                 modifier = Modifier.padding(18.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                Text("CSV Statement Import Wizard", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
                                 Text(
-                                    "Spendly validates rows, maps columns, checks for duplicates, and previews errors before importing. Existing records are never overwritten silently.",
+                                    "CSV Statement Import",
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    "Spendly validates rows, maps columns, checks for duplicates, and previews errors before importing. Existing records are never overwritten.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -637,16 +679,19 @@ fun ImportExportScreen(
                                     label = { Text("CSV Content (Edit or paste bank CSV)") },
                                     modifier = Modifier.fillMaxWidth(),
                                     minLines = 4,
-                                    shape = RoundedCornerShape(14.dp),
+                                    shape = RoundedCornerShape(SpendlyTokens.InputRadius),
                                 )
                                 Button(
                                     onClick = { wizardStep = 1 },
                                     enabled = uiState.activeAccounts.isNotEmpty() && rawCsvText.isNotBlank(),
-                                    modifier = Modifier.fillMaxWidth().height(50.dp).testTag("csv_preview_button"),
-                                    shape = RoundedCornerShape(16.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(50.dp)
+                                        .testTag("csv_preview_button"),
+                                    shape = RoundedCornerShape(12.dp),
                                 ) {
                                     Icon(Icons.Rounded.FileUpload, contentDescription = null)
-                                    Spacer(Modifier.padding(3.dp))
+                                    Spacer(Modifier.size(6.dp))
                                     Text(if (uiState.activeAccounts.isEmpty()) "Create an Account First" else "Preview & Map CSV")
                                 }
                             }
@@ -654,16 +699,15 @@ fun ImportExportScreen(
                     }
 
                     item {
-                        Surface(
-                            shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-                            color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 2.dp,
-                        ) {
+                        LedgerGroupCard {
                             Column(
                                 modifier = Modifier.padding(18.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                Text("Export & Backup", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                                Text(
+                                    "Export & Backup",
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -680,11 +724,14 @@ fun ImportExportScreen(
                                             file.writeText(body)
                                             statusMessage = "Exported ${uiState.transactions.size} transactions to ${file.name}."
                                         },
-                                        modifier = Modifier.weight(1f).height(48.dp),
-                                        shape = RoundedCornerShape(14.dp),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(48.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = BorderStroke(1.dp, semantic.surfaceBorder),
                                     ) {
                                         Icon(Icons.Rounded.FileDownload, contentDescription = null)
-                                        Spacer(Modifier.padding(2.dp))
+                                        Spacer(Modifier.size(4.dp))
                                         Text("Export CSV")
                                     }
                                     OutlinedButton(
@@ -693,16 +740,22 @@ fun ImportExportScreen(
                                             file.writeText("{\"accounts\":${uiState.accounts.size},\"transactions\":${uiState.transactions.size},\"budgets\":${uiState.budgets.size}}")
                                             statusMessage = "Created JSON backup (${file.name}, ${file.length()} bytes)."
                                         },
-                                        modifier = Modifier.weight(1f).height(48.dp),
-                                        shape = RoundedCornerShape(14.dp),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(48.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = BorderStroke(1.dp, semantic.surfaceBorder),
                                     ) {
                                         Text("Export Backup")
                                     }
                                 }
                                 OutlinedButton(
                                     onClick = { showRestoreConfirm = true },
-                                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                                    shape = RoundedCornerShape(14.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, semantic.surfaceBorder),
                                 ) {
                                     Text("Restore Preview Snapshot")
                                 }
@@ -711,16 +764,15 @@ fun ImportExportScreen(
                     }
                 } else {
                     item {
-                        Surface(
-                            shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-                            color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 2.dp,
-                        ) {
+                        LedgerGroupCard {
                             Column(
                                 modifier = Modifier.padding(18.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
-                                Text("Step 2: Map Destination & Currency", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                                Text(
+                                    "Step 2: Map Destination & Currency",
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
                                 val destAcc = uiState.accountById(destAccountId)
                                 ExposedDropdownMenuBox(
                                     expanded = accountDropdown,
@@ -732,8 +784,10 @@ fun ImportExportScreen(
                                         readOnly = true,
                                         label = { Text("Destination Account") },
                                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = accountDropdown) },
-                                        modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
-                                        shape = RoundedCornerShape(14.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                                        shape = RoundedCornerShape(SpendlyTokens.InputRadius),
                                     )
                                     ExposedDropdownMenu(
                                         expanded = accountDropdown,
@@ -752,7 +806,7 @@ fun ImportExportScreen(
                                     }
                                 }
                                 Text(
-                                    "Columns mapped: Date → Transaction Date, Description → Merchant/Desc, Amount → $importCurrency",
+                                    "Columns mapped: Date -> Transaction Date, Description -> Merchant/Desc, Amount -> $importCurrency",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -772,20 +826,28 @@ fun ImportExportScreen(
                     }
 
                     items(parsedRows, key = { it.rowNumber }) { row ->
-                        val semantic = SpendlyTheme.semantic
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(SpendlyTokens.RowRadius),
                             color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 1.dp,
+                            border = BorderStroke(1.dp, semantic.surfaceBorder),
                         ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text("Row ${row.rowNumber}: ${row.description}", style = MaterialTheme.typography.titleSmall)
-                                    Text("${row.dateText} • ${row.amountText} ($importCurrency)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        "Row ${row.rowNumber}: ${row.description}",
+                                        style = MaterialTheme.typography.titleSmall,
+                                    )
+                                    Text(
+                                        "${row.dateText} • ${row.amountText} ($importCurrency)",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
                                     row.errorMessage?.let {
                                         Text(it, style = MaterialTheme.typography.bodySmall, color = semantic.expense)
                                     }
@@ -824,8 +886,11 @@ fun ImportExportScreen(
                         ) {
                             OutlinedButton(
                                 onClick = { wizardStep = 0 },
-                                modifier = Modifier.weight(1f).height(50.dp),
-                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(50.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, semantic.surfaceBorder),
                             ) {
                                 Text("Back")
                             }
@@ -833,11 +898,14 @@ fun ImportExportScreen(
                                 onClick = {
                                     val count = onCommitCsvImport(parsedRows, destAccountId, importCurrency)
                                     wizardStep = 0
-                                    statusMessage = "Imported $count new transaction(s). Duplicates and invalid rows were safely skipped."
+                                    statusMessage = "Imported $count new transaction(s). Duplicates and invalid rows were skipped."
                                 },
                                 enabled = validCount > 0,
-                                modifier = Modifier.weight(1f).height(50.dp).testTag("csv_confirm_import_button"),
-                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(50.dp)
+                                    .testTag("csv_confirm_import_button"),
+                                shape = RoundedCornerShape(12.dp),
                             ) {
                                 Text("Confirm Import ($validCount)")
                             }
@@ -854,7 +922,10 @@ fun ImportExportScreen(
             title = { Text("Data Action Complete") },
             text = { Text(msg) },
             confirmButton = {
-                Button(onClick = { statusMessage = null }) { Text("OK") }
+                Button(
+                    onClick = { statusMessage = null },
+                    shape = RoundedCornerShape(12.dp),
+                ) { Text("OK") }
             },
         )
     }
@@ -864,7 +935,7 @@ fun ImportExportScreen(
             onDismissRequest = { showRestoreConfirm = false },
             title = { Text("Confirm Backup Restoration") },
             text = {
-                Text("Restoring the preview snapshot will replace your current in-session accounts, transactions, and budgets with the default preview ledger. Continue?")
+                Text("Restoring the preview snapshot will replace your current accounts, transactions, and budgets with the starter preview ledger. Continue?")
             },
             confirmButton = {
                 Button(
@@ -873,12 +944,16 @@ fun ImportExportScreen(
                         showRestoreConfirm = false
                         statusMessage = "Restored snapshot successfully."
                     },
+                    shape = RoundedCornerShape(12.dp),
                 ) {
                     Text("Restore")
                 }
             },
             dismissButton = {
-                OutlinedButton(onClick = { showRestoreConfirm = false }) { Text("Cancel") }
+                OutlinedButton(
+                    onClick = { showRestoreConfirm = false },
+                    shape = RoundedCornerShape(12.dp),
+                ) { Text("Cancel") }
             },
         )
     }
@@ -938,6 +1013,7 @@ fun CurrencySettingsScreen(
     onNavigateBack: () -> Unit,
     onSetDefaultCurrency: (String) -> Unit,
 ) {
+    val semantic = SpendlyTheme.semantic
     var showPicker by remember { mutableStateOf(false) }
     val base = CurrencyCatalog.findByCode(uiState.defaultCurrencyCode)
 
@@ -948,7 +1024,7 @@ fun CurrencySettingsScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
-                title = { Text("Currency Settings") },
+                title = { Text("Currency Settings", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
@@ -958,36 +1034,55 @@ fun CurrencySettingsScreen(
         },
     ) { innerPadding ->
         Box(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
             contentAlignment = Alignment.TopCenter,
         ) {
             LazyColumn(
-                modifier = Modifier.widthIn(max = 860.dp).fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
+                modifier = Modifier
+                    .widthIn(max = 860.dp)
+                    .fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
                     Surface(
                         onClick = { showPicker = true },
-                        modifier = Modifier.fillMaxWidth().testTag("change_default_currency_card"),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("change_default_currency_card"),
                         shape = RoundedCornerShape(SpendlyTokens.CardRadius),
                         color = MaterialTheme.colorScheme.primaryContainer,
-                        shadowElevation = 2.dp,
                     ) {
                         Row(
                             modifier = Modifier.padding(18.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Column {
-                                Text("DEFAULT BASE CURRENCY", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text(
+                                    "Default Base Currency",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
                                 Text(
                                     "${base.code} (${base.symbol}) — ${base.displayName}",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 )
                             }
-                            Text("Change", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                            Surface(
+                                shape = RoundedCornerShape(999.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                            ) {
+                                Text(
+                                    "Change",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                )
+                            }
                         }
                     }
                 }
@@ -996,10 +1091,10 @@ fun CurrencySettingsScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
                             text = "Exchange Rates & Precision",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
-                            text = "Original transaction currencies are always preserved. Missing rates are shown explicitly rather than fabricated.",
+                            text = "Original transaction currencies are preserved. Missing rates are shown explicitly rather than estimated.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -1008,17 +1103,22 @@ fun CurrencySettingsScreen(
 
                 items(CurrencyCatalog.supportedCurrencies, key = { it.code }) { spec ->
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(SpendlyTokens.RowRadius),
                         color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 1.dp,
+                        border = BorderStroke(1.dp, semantic.surfaceBorder),
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("${spec.code} (${spec.symbol}) — ${spec.displayName}", style = MaterialTheme.typography.titleSmall)
+                                Text(
+                                    "${spec.code} (${spec.symbol}) — ${spec.displayName}",
+                                    style = MaterialTheme.typography.titleSmall,
+                                )
                                 Text(
                                     text = if (spec.rateToUsd != null) {
                                         "1 ${spec.code} = ${spec.rateToUsd} USD • ${spec.rateSource} (${spec.rateDate})"
@@ -1037,7 +1137,7 @@ fun CurrencySettingsScreen(
                                     text = "${spec.minorDecimals} dec",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
                                 )
                             }
                         }
@@ -1087,7 +1187,7 @@ fun SettingsDetailScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
-                title = { Text(title) },
+                title = { Text(title, style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("settings_detail_back")) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
@@ -1097,37 +1197,57 @@ fun SettingsDetailScreen(
         },
     ) { innerPadding ->
         Box(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
             contentAlignment = Alignment.TopCenter,
         ) {
             LazyColumn(
-                modifier = Modifier.widthIn(max = 860.dp).fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
+                modifier = Modifier
+                    .widthIn(max = 860.dp)
+                    .fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 when (section) {
                     "appearance" -> {
                         item {
-                            MoreSectionGroup(title = "THEME") {
+                            MoreSectionGroup(title = "Theme") {
                                 listOf(
-                                    ThemeMode.LIGHT to "Light Mode (Warm Alabaster & Emerald)",
-                                    ThemeMode.DARK to "Dark Mode (Obsidian Pine & Mint)",
+                                    ThemeMode.LIGHT to "Light (Nordic Paper)",
+                                    ThemeMode.DARK to "Dark (Nordic Slate)",
                                     ThemeMode.SYSTEM to "Match System Setting",
                                 ).forEachIndexed { idx, (mode, label) ->
-                                    if (idx > 0) MoreDivider()
+                                    if (idx > 0) {
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(start = 16.dp, end = 16.dp),
+                                            thickness = 0.5.dp,
+                                            color = MaterialTheme.colorScheme.outlineVariant,
+                                        )
+                                    }
                                     Surface(
                                         onClick = { onSetThemeMode(mode) },
                                         color = MaterialTheme.colorScheme.surface,
-                                        modifier = Modifier.fillMaxWidth().testTag("theme_option_${mode.name.lowercase()}"),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .minimumInteractiveComponentSize()
+                                            .testTag("theme_option_${mode.name.lowercase()}"),
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(16.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically,
                                         ) {
-                                            Text(label, style = MaterialTheme.typography.titleSmall)
+                                            Text(
+                                                label,
+                                                style = MaterialTheme.typography.titleSmall,
+                                            )
                                             if (uiState.themeMode == mode) {
-                                                Icon(Icons.Rounded.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
+                                                Icon(
+                                                    Icons.Rounded.Check,
+                                                    contentDescription = "Selected",
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                )
                                             }
                                         }
                                     }
@@ -1135,22 +1255,37 @@ fun SettingsDetailScreen(
                             }
                         }
                         item {
-                            MoreSectionGroup(title = "LANGUAGE") {
+                            MoreSectionGroup(title = "Language") {
                                 listOf("English", "বাংলা (Bangla)").forEachIndexed { idx, lang ->
-                                    if (idx > 0) MoreDivider()
+                                    if (idx > 0) {
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(start = 16.dp, end = 16.dp),
+                                            thickness = 0.5.dp,
+                                            color = MaterialTheme.colorScheme.outlineVariant,
+                                        )
+                                    }
                                     Surface(
                                         onClick = { onSetLanguage(lang) },
                                         color = MaterialTheme.colorScheme.surface,
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .minimumInteractiveComponentSize(),
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(16.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically,
                                         ) {
-                                            Text(lang, style = MaterialTheme.typography.titleSmall)
+                                            Text(
+                                                lang,
+                                                style = MaterialTheme.typography.titleSmall,
+                                            )
                                             if (uiState.selectedLanguage == lang) {
-                                                Icon(Icons.Rounded.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
+                                                Icon(
+                                                    Icons.Rounded.Check,
+                                                    contentDescription = "Selected",
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                )
                                             }
                                         }
                                     }
@@ -1189,11 +1324,11 @@ fun SettingsDetailScreen(
                         }
                         item {
                             Surface(
-                                shape = RoundedCornerShape(18.dp),
+                                shape = RoundedCornerShape(SpendlyTokens.CardRadius),
                                 color = MaterialTheme.colorScheme.primaryContainer,
                             ) {
                                 Text(
-                                    text = "Privacy Guarantee: Spendly stores your ledger locally and never collects full card numbers, CVVs, PINs, or bank passwords.",
+                                    text = "Privacy Guarantee: Spendly protects your cloud ledger with strict per-user access control and never collects card numbers, CVVs, PINs, or bank passwords.",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     modifier = Modifier.padding(16.dp),
@@ -1204,11 +1339,7 @@ fun SettingsDetailScreen(
 
                     "profile" -> {
                         item {
-                            Surface(
-                                shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-                                color = MaterialTheme.colorScheme.surface,
-                                shadowElevation = 2.dp,
-                            ) {
+                            LedgerGroupCard {
                                 Column(
                                     modifier = Modifier.padding(18.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1219,7 +1350,7 @@ fun SettingsDetailScreen(
                                         label = { Text("Display Name") },
                                         modifier = Modifier.fillMaxWidth(),
                                         singleLine = true,
-                                        shape = RoundedCornerShape(14.dp),
+                                        shape = RoundedCornerShape(SpendlyTokens.InputRadius),
                                     )
                                     Button(
                                         onClick = {
@@ -1228,8 +1359,10 @@ fun SettingsDetailScreen(
                                                 onNavigateBack()
                                             }
                                         },
-                                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                                        shape = RoundedCornerShape(16.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(50.dp),
+                                        shape = RoundedCornerShape(12.dp),
                                     ) {
                                         Text("Save Profile")
                                     }
@@ -1240,16 +1373,25 @@ fun SettingsDetailScreen(
 
                     "support" -> {
                         item {
-                            InfoCard("How Credit Card Repayments Work", "Record repayments as a Transfer from your Bank Account to your Credit Card. Spendly reduces your credit card outstanding balance without counting the repayment as a second shopping expense.")
+                            InfoCard(
+                                "How Credit Card Repayments Work",
+                                "Record repayments as a Transfer from your Bank Account to your Credit Card. Spendly reduces your credit card outstanding balance without counting the repayment as a second shopping expense.",
+                            )
                         }
                         item {
-                            InfoCard("Manual Account Balances", "Account balances are calculated from your opening balance plus recorded transactions. They are tracking figures rather than live bank feeds.")
+                            InfoCard(
+                                "Manual Account Balances",
+                                "Account balances are calculated from your opening balance plus recorded transactions. They are tracking figures rather than live bank feeds.",
+                            )
                         }
                     }
 
                     else -> {
                         item {
-                            InfoCard("SPENDLY", "Version 1.0 • Editorial Ledger UI/UX\nOrganize manually. Understand automatically.\n\nDefault Currency: ${uiState.defaultCurrencyCode}\nLocal-first personal finance tracking.")
+                            InfoCard(
+                                "Spendly",
+                                "Version 1.0 • Personal Finance Ledger\nOrganize manually. Understand clearly.\n\nDefault Currency: ${uiState.defaultCurrencyCode}\nCloud-synced personal finance tracking.",
+                            )
                         }
                     }
                 }
@@ -1266,16 +1408,12 @@ private fun MoreSectionGroup(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = title,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 4.dp),
         )
-        Surface(
-            shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 2.dp,
-        ) {
-            Column { content() }
+        LedgerGroupCard {
+            content()
         }
     }
 }
@@ -1292,7 +1430,10 @@ private fun MoreMenuRow(
 ) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().testTag(testTag),
+        modifier = Modifier
+            .fillMaxWidth()
+            .minimumInteractiveComponentSize()
+            .testTag(testTag),
         color = MaterialTheme.colorScheme.surface,
     ) {
         Row(
@@ -1308,7 +1449,7 @@ private fun MoreMenuRow(
                 Box(
                     modifier = Modifier
                         .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(CircleShape)
                         .background(iconBg),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -1316,15 +1457,26 @@ private fun MoreMenuRow(
                         icon,
                         contentDescription = null,
                         tint = iconTint,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(19.dp),
                     )
                 }
-                Column {
-                    Text(title, style = MaterialTheme.typography.titleSmall)
-                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
-            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(
+                Icons.Rounded.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -1345,19 +1497,29 @@ private fun PreferenceToggleCard(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    Surface(
-        shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 2.dp,
-    ) {
+    LedgerGroupCard {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                Text(title, style = MaterialTheme.typography.titleSmall)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             Switch(checked = checked, onCheckedChange = onCheckedChange)
         }
@@ -1366,13 +1528,14 @@ private fun PreferenceToggleCard(
 
 @Composable
 private fun InfoCard(title: String, body: String) {
-    Surface(
-        shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 2.dp,
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+    LedgerGroupCard {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
             Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

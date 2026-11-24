@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -29,11 +30,11 @@ import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.AutoGraph
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
-import androidx.compose.material.icons.rounded.CloudDone
 import androidx.compose.material.icons.rounded.CurrencyExchange
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.PieChart
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +43,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,16 +53,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.example.ui.components.AnimatedLedgerHero
+import com.example.ui.components.LedgerGroupCard
 import com.example.ui.components.SearchableCurrencySheet
 import com.example.ui.components.SpendlyBrandLogo
 import com.example.ui.theme.SpendlyTheme
@@ -94,52 +95,38 @@ fun OnboardingScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 10.dp,
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(horizontal = 20.dp, vertical = 14.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Surface(
-                        onClick = { onGetStarted(selectedCurrency, selectedLanguage, loadPreviewSample) },
+            Column(modifier = Modifier.fillMaxWidth()) {
+                HorizontalDivider(
+                    thickness = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                )
+                Surface(color = MaterialTheme.colorScheme.surface) {
+                    Box(
                         modifier = Modifier
-                            .widthIn(max = 600.dp)
                             .fillMaxWidth()
-                            .height(54.dp)
-                            .testTag("onboarding_get_started"),
-                        shape = RoundedCornerShape(18.dp),
-                        shadowElevation = 4.dp,
-                        color = Color.Transparent,
+                            .navigationBarsPadding()
+                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Box(
+                        Button(
+                            onClick = { onGetStarted(selectedCurrency, selectedLanguage, loadPreviewSample) },
                             modifier = Modifier
-                                .background(
-                                    Brush.horizontalGradient(
-                                        listOf(semantic.heroCardStart, semantic.heroCardMid, semantic.heroCardEnd),
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center,
+                                .widthIn(max = 600.dp)
+                                .fillMaxWidth()
+                                .height(52.dp)
+                                .testTag("onboarding_get_started"),
+                            shape = RoundedCornerShape(12.dp),
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Text(
-                                    text = "Get Started",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = Color.White,
-                                )
-                                Icon(
-                                    Icons.AutoMirrored.Rounded.ArrowForward,
-                                    contentDescription = null,
-                                    tint = semantic.heroAccent,
-                                )
-                            }
+                            Text(
+                                text = "Get Started",
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Spacer(Modifier.size(8.dp))
+                            Icon(
+                                Icons.AutoMirrored.Rounded.ArrowForward,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
                         }
                     }
                 }
@@ -158,40 +145,11 @@ fun OnboardingScreen(
                     .widthIn(max = 600.dp)
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    SpendlyBrandLogo()
-                    Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.CloudDone,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(13.dp),
-                            )
-                            Text(
-                                text = "CLOUD READY",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                        }
-                    }
-                }
+                SpendlyBrandLogo()
 
-                // Animated Video-Like Motion Reel Hero
                 AnimatedVisibility(
                     visible = step1Visible,
                     enter = fadeIn() + slideInVertically(
@@ -199,7 +157,7 @@ fun OnboardingScreen(
                         initialOffsetY = { it / 8 },
                     ),
                 ) {
-                    AnimatedLedgerHero(badgeLabel = "LIVE LEDGER REEL")
+                    AnimatedLedgerHero(badgeLabel = "3D Card")
                 }
 
                 AnimatedVisibility(
@@ -214,21 +172,20 @@ fun OnboardingScreen(
                             text = buildAnnotatedString {
                                 append("Organize manually.\n")
                                 withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
-                                    append("Understand automatically.")
+                                    append("Understand clearly.")
                                 }
                             },
                             style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
-                            text = "A calm, deliberate personal ledger for accounts, budgets, notifications, and multi-currency clarity.",
+                            text = "A straightforward personal ledger for accounts, budgets, notifications, and multi-currency tracking.",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
 
-                // Staggered Feature Highlights & Setup
                 AnimatedVisibility(
                     visible = step2Visible,
                     enter = fadeIn() + slideInVertically(
@@ -236,186 +193,192 @@ fun OnboardingScreen(
                         initialOffsetY = { it / 5 },
                     ),
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                        Surface(
-                            shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-                            color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 2.dp,
-                        ) {
-                            Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                                BenefitRow(
-                                    icon = Icons.Rounded.AccountBalanceWallet,
-                                    iconTint = MaterialTheme.colorScheme.primary,
-                                    iconBg = MaterialTheme.colorScheme.primaryContainer,
-                                    title = "All Accounts, Manual & Transparent",
-                                    subtitle = "Track bank accounts, cards, cash & wallets without sharing bank logins.",
-                                )
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(start = 66.dp, end = 16.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant,
-                                )
-                                BenefitRow(
-                                    icon = Icons.Rounded.PieChart,
-                                    iconTint = semantic.warning,
-                                    iconBg = semantic.warningContainer,
-                                    title = "Budgets & Smart Alerts",
-                                    subtitle = "Real Android notifications before spending crosses monthly limits.",
-                                )
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(start = 66.dp, end = 16.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant,
-                                )
-                                BenefitRow(
-                                    icon = Icons.Rounded.AutoGraph,
-                                    iconTint = semantic.transfer,
-                                    iconBg = semantic.transferContainer,
-                                    title = "Multi-Currency Precision",
-                                    subtitle = "Every record keeps its original currency with transparent conversion.",
-                                )
-                            }
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        LedgerGroupCard {
+                            BenefitRow(
+                                icon = Icons.Rounded.AccountBalanceWallet,
+                                iconTint = MaterialTheme.colorScheme.primary,
+                                iconBg = MaterialTheme.colorScheme.primaryContainer,
+                                title = "Manual & Transparent Accounts",
+                                subtitle = "Track banks, cards, cash & wallets without sharing bank logins.",
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = 68.dp, end = 16.dp),
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                            )
+                            BenefitRow(
+                                icon = Icons.Rounded.PieChart,
+                                iconTint = semantic.warning,
+                                iconBg = semantic.warningContainer,
+                                title = "Budgets & Smart Alerts",
+                                subtitle = "Get timely alerts before monthly spending crosses category limits.",
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = 68.dp, end = 16.dp),
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                            )
+                            BenefitRow(
+                                icon = Icons.Rounded.AutoGraph,
+                                iconTint = semantic.income,
+                                iconBg = semantic.incomeContainer,
+                                title = "Multi-Currency Precision",
+                                subtitle = "Every entry preserves its original currency with clear conversion.",
+                            )
                         }
 
-                        Surface(
-                            shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-                            color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 2.dp,
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(18.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                        LedgerGroupCard {
+                            Text(
+                                text = "Ledger Setup",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 6.dp),
+                            )
+
+                            Surface(
+                                onClick = { showCurrencyPicker = true },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("onboarding_currency_selector"),
+                                color = Color.Transparent,
                             ) {
-                                Text(
-                                    text = "INITIAL SETUP",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-
-                                Surface(
-                                    onClick = { showCurrencyPicker = true },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("onboarding_currency_selector"),
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(14.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(38.dp)
-                                                    .clip(RoundedCornerShape(11.dp))
-                                                    .background(MaterialTheme.colorScheme.primaryContainer),
-                                                contentAlignment = Alignment.Center,
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Rounded.CurrencyExchange,
-                                                    contentDescription = "Default currency",
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                    modifier = Modifier.size(19.dp),
-                                                )
-                                            }
-                                            Column {
-                                                Text(
-                                                    "Default Currency",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                )
-                                                Text(
-                                                    text = "${currencySpec.code} (${currencySpec.symbol}) — ${currencySpec.displayName}",
-                                                    style = MaterialTheme.typography.titleSmall,
-                                                )
-                                            }
-                                        }
-                                        Icon(
-                                            Icons.Rounded.ChevronRight,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
-
-                                Surface(
-                                    onClick = { showLanguageDialog = true },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("onboarding_language_selector"),
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(14.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(38.dp)
-                                                    .clip(RoundedCornerShape(11.dp))
-                                                    .background(semantic.warningContainer),
-                                                contentAlignment = Alignment.Center,
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Rounded.Language,
-                                                    contentDescription = "Language",
-                                                    tint = semantic.warning,
-                                                    modifier = Modifier.size(19.dp),
-                                                )
-                                            }
-                                            Column {
-                                                Text(
-                                                    "Language",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                )
-                                                Text(
-                                                    text = selectedLanguage,
-                                                    style = MaterialTheme.typography.titleSmall,
-                                                )
-                                            }
-                                        }
-                                        Icon(
-                                            Icons.Rounded.ChevronRight,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
-
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 4.dp),
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                 ) {
-                                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                                        Text(
-                                            text = "Include starter sample ledger",
-                                            style = MaterialTheme.typography.titleSmall,
-                                        )
-                                        Text(
-                                            text = "Preloads editable accounts & budgets so you can explore right away.",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(38.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.primaryContainer),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.CurrencyExchange,
+                                                contentDescription = "Default currency",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
+                                        Column {
+                                            Text(
+                                                "Default Currency",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                            Text(
+                                                text = "${currencySpec.code} (${currencySpec.symbol}) — ${currencySpec.displayName}",
+                                                style = MaterialTheme.typography.titleSmall,
+                                            )
+                                        }
                                     }
-                                    Switch(
-                                        checked = loadPreviewSample,
-                                        onCheckedChange = { loadPreviewSample = it },
-                                        modifier = Modifier.testTag("onboarding_sample_switch"),
+                                    Icon(
+                                        Icons.Rounded.ChevronRight,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
+                            }
+
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = 66.dp, end = 16.dp),
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                            )
+
+                            Surface(
+                                onClick = { showLanguageDialog = true },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("onboarding_language_selector"),
+                                color = Color.Transparent,
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(38.dp)
+                                                .clip(CircleShape)
+                                                .background(semantic.warningContainer),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Language,
+                                                contentDescription = "Language",
+                                                tint = semantic.warning,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
+                                        Column {
+                                            Text(
+                                                "Language",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                            Text(
+                                                text = selectedLanguage,
+                                                style = MaterialTheme.typography.titleSmall,
+                                            )
+                                        }
+                                    }
+                                    Icon(
+                                        Icons.Rounded.ChevronRight,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = 16.dp, end = 16.dp),
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                            )
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 12.dp),
+                                ) {
+                                    Text(
+                                        text = "Include starter sample ledger",
+                                        style = MaterialTheme.typography.titleSmall,
+                                    )
+                                    Text(
+                                        text = "Preloads editable accounts and budgets so you can explore right away.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Switch(
+                                    checked = loadPreviewSample,
+                                    onCheckedChange = { loadPreviewSample = it },
+                                    modifier = Modifier.testTag("onboarding_sample_switch"),
+                                )
                             }
                         }
                     }
@@ -453,7 +416,7 @@ fun OnboardingScreen(
                                 selectedLanguage = lang
                                 showLanguageDialog = false
                             },
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(SpendlyTokens.RowRadius),
                             color = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
                             border = if (active) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
                         ) {
@@ -503,7 +466,7 @@ private fun BenefitRow(
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(CircleShape)
                 .background(iconBg),
             contentAlignment = Alignment.Center,
         ) {
@@ -511,13 +474,13 @@ private fun BenefitRow(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconTint,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(19.dp),
             )
         }
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
