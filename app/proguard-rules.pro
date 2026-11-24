@@ -19,3 +19,10 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+-keepattributes Signature,InnerClasses,EnclosingMethod
+-keep class com.example.model.** { *; }
+-keepclassmembers class * {
+    @androidx.annotation.Keep *;
+}
+

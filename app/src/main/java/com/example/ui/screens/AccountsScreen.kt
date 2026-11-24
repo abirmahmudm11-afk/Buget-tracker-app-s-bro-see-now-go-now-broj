@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -35,6 +37,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,13 +50,19 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -63,13 +72,16 @@ import com.example.model.AccountType
 import com.example.model.TransactionRecord
 import com.example.ui.components.AccountLedgerCard
 import com.example.ui.components.EmptyLedgerState
+import com.example.ui.components.LedgerGroupCard
 import com.example.ui.components.SearchableCurrencySheet
 import com.example.ui.components.TransactionLedgerRow
+import com.example.ui.theme.MoneyHeroStyle
 import com.example.ui.theme.SpendlyTheme
 import com.example.ui.theme.SpendlyTokens
 import com.example.util.CurrencyCatalog
 import com.example.util.MoneyFormatter
 import com.example.viewmodel.SpendlyUiState
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,6 +109,7 @@ fun AccountsScreen(
     val semantic = SpendlyTheme.semantic
     val baseCode = uiState.defaultCurrencyCode
     val hide = uiState.privacyHideBalances
+    val netPositionMinor = uiState.totalAssetsBaseMinor - uiState.totalCreditOutstandingBaseMinor
 
     val displayedSummaries = remember(uiState.accountSummaries, showArchived) {
         uiState.accountSummaries.filter { it.account.isArchived == showArchived }
@@ -106,6 +119,9 @@ fun AccountsScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
                 title = { Text("Accounts & Cards") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("accounts_back")) {
@@ -121,9 +137,9 @@ fun AccountsScreen(
                         modifier = Modifier
                             .padding(end = 12.dp)
                             .testTag("add_account_button"),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                     ) {
-                        Icon(Icons.Rounded.Add, contentDescription = null)
+                        Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.padding(2.dp))
                         Text("Add")
                     }
@@ -142,63 +158,99 @@ fun AccountsScreen(
                     .widthIn(max = 860.dp)
                     .fillMaxSize()
                     .testTag("accounts_list"),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                // Summary Strip
+                // Net Position Hero Summary Card
                 item {
                     Surface(
-                        shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        shape = RoundedCornerShape(SpendlyTokens.HeroRadius),
+                        shadowElevation = 5.dp,
+                        color = Color.Transparent,
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(semantic.heroCardStart, semantic.heroCardMid, semantic.heroCardEnd)
+                                    )
+                                ),
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "CALCULATED ASSETS",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Text(
-                                        text = if (hide) "••••" else MoneyFormatter.formatMinor(uiState.totalAssetsBaseMinor, baseCode),
-                                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                                    )
-                                }
-                                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                                    Text(
-                                        text = "CREDIT OUTSTANDING",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = semantic.warning,
-                                    )
-                                    Text(
-                                        text = if (hide) "••••" else MoneyFormatter.formatMinor(uiState.totalCreditOutstandingBaseMinor, baseCode),
-                                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = if (uiState.totalCreditOutstandingBaseMinor > 0) semantic.warning else MaterialTheme.colorScheme.onSurface,
-                                    )
-                                }
+                            Canvas(modifier = Modifier.matchParentSize()) {
+                                drawCircle(
+                                    color = Color.White.copy(alpha = 0.06f),
+                                    radius = size.width * 0.35f,
+                                    center = Offset(size.width * 0.92f, size.height * 0.16f),
+                                )
                             }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            Column(
+                                modifier = Modifier.padding(20.dp),
+                                verticalArrangement = Arrangement.spacedBy(14.dp),
                             ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Info,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Text(
-                                    text = "Balances are calculated from manual entries & opening balances — not bank-verified.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = "NET MANUAL POSITION",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = semantic.onHeroCardMuted,
+                                    )
+                                    Text(
+                                        text = if (hide) "••••••" else MoneyFormatter.formatMinor(netPositionMinor, baseCode),
+                                        style = MoneyHeroStyle,
+                                        color = semantic.onHeroCard,
+                                    )
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    Surface(
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = Color.White.copy(alpha = 0.12f),
+                                    ) {
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            Text("CALCULATED ASSETS", style = MaterialTheme.typography.labelSmall, color = semantic.heroAccent)
+                                            Text(
+                                                text = if (hide) "••••" else MoneyFormatter.formatMinor(uiState.totalAssetsBaseMinor, baseCode),
+                                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                                color = semantic.onHeroCard,
+                                            )
+                                        }
+                                    }
+                                    Surface(
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = Color.White.copy(alpha = 0.12f),
+                                    ) {
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            Text("CREDIT OUTSTANDING", style = MaterialTheme.typography.labelSmall, color = semantic.heroGold)
+                                            Text(
+                                                text = if (hide) "••••" else MoneyFormatter.formatMinor(uiState.totalCreditOutstandingBaseMinor, baseCode),
+                                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                                color = semantic.onHeroCard,
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Info,
+                                        contentDescription = null,
+                                        tint = semantic.onHeroCardMuted,
+                                        modifier = Modifier.size(15.dp),
+                                    )
+                                    Text(
+                                        text = "Calculated from manual entries & opening balances — not bank-verified.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = semantic.onHeroCardMuted,
+                                    )
+                                }
                             }
                         }
                     }
@@ -206,17 +258,23 @@ fun AccountsScreen(
 
                 // Active / Archived toggle
                 item {
+                    val chipColors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
                             selected = !showArchived,
                             onClick = { showArchived = false },
                             label = { Text("Active (${uiState.activeAccounts.size})") },
+                            colors = chipColors,
                             modifier = Modifier.testTag("accounts_tab_active"),
                         )
                         FilterChip(
                             selected = showArchived,
                             onClick = { showArchived = true },
                             label = { Text("Archived (${uiState.archivedAccounts.size})") },
+                            colors = chipColors,
                             modifier = Modifier.testTag("accounts_tab_archived"),
                         )
                     }
@@ -324,6 +382,9 @@ fun AccountDetailScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
                 title = { Text(account.name) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("account_detail_back")) {
@@ -367,8 +428,8 @@ fun AccountDetailScreen(
                 modifier = Modifier
                     .widthIn(max = 860.dp)
                     .fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 item {
                     AccountLedgerCard(
@@ -380,32 +441,27 @@ fun AccountDetailScreen(
                 }
 
                 item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    Button(
+                        onClick = { onRecordTransactionForAccount(account.id) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                            .testTag("account_detail_add_tx"),
+                        shape = RoundedCornerShape(16.dp),
+                        enabled = !account.isArchived,
                     ) {
-                        Button(
-                            onClick = { onRecordTransactionForAccount(account.id) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .testTag("account_detail_add_tx"),
-                            shape = RoundedCornerShape(14.dp),
-                            enabled = !account.isArchived,
-                        ) {
-                            Icon(Icons.Rounded.Add, contentDescription = null)
-                            Spacer(Modifier.padding(3.dp))
-                            Text(if (account.isArchived) "Account Archived" else "Record Transaction")
-                        }
+                        Icon(Icons.Rounded.Add, contentDescription = null)
+                        Spacer(Modifier.padding(3.dp))
+                        Text(if (account.isArchived) "Account Archived" else "Record Transaction")
                     }
                 }
 
                 if (account.description.isNotBlank()) {
                     item {
                         Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerLow,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            shadowElevation = 1.dp,
                         ) {
                             Text(
                                 text = account.description,
@@ -420,7 +476,7 @@ fun AccountDetailScreen(
                 item {
                     Text(
                         text = "Account History (${accountTransactions.size})",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
@@ -435,19 +491,33 @@ fun AccountDetailScreen(
                         )
                     }
                 } else {
-                    items(accountTransactions, key = { it.id }) { tx ->
-                        TransactionLedgerRow(
-                            transaction = tx,
-                            category = uiState.categoryById(tx.categoryId),
-                            accountName = uiState.accountById(tx.accountId)?.name ?: "Account",
-                            destinationAccountName = tx.destinationAccountId?.let { uiState.accountById(it)?.name },
-                            defaultCurrencyCode = uiState.defaultCurrencyCode,
-                            convertedBaseMinor = uiState.convertToBase(tx.amountMinor, tx.currencyCode),
-                            hideBalances = uiState.privacyHideBalances,
-                            onClick = { onOpenTransactionDetail(tx) },
-                        )
+                    item {
+                        LedgerGroupCard {
+                            accountTransactions.forEachIndexed { idx, tx ->
+                                TransactionLedgerRow(
+                                    transaction = tx,
+                                    category = uiState.categoryById(tx.categoryId),
+                                    accountName = uiState.accountById(tx.accountId)?.name ?: "Account",
+                                    destinationAccountName = tx.destinationAccountId?.let { uiState.accountById(it)?.name },
+                                    defaultCurrencyCode = uiState.defaultCurrencyCode,
+                                    convertedBaseMinor = uiState.convertToBase(tx.amountMinor, tx.currencyCode),
+                                    hideBalances = uiState.privacyHideBalances,
+                                    onClick = { onOpenTransactionDetail(tx) },
+                                    grouped = true,
+                                )
+                                if (idx < accountTransactions.lastIndex) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(start = 72.dp, end = 16.dp),
+                                        thickness = 0.5.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant,
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
+
+                item { Spacer(Modifier.height(16.dp)) }
             }
         }
     }
@@ -512,7 +582,7 @@ fun AccountDetailScreen(
 
 @Composable
 private fun LaunchedEffectFallback(onNavigateBack: () -> Unit) {
-    androidx.compose.runtime.LaunchedEffect(Unit) { onNavigateBack() }
+    LaunchedEffect(Unit) { onNavigateBack() }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -544,7 +614,7 @@ fun AccountFormSheet(
             if (editingAccount != null && editingAccount.openingBalanceMinor != 0L) {
                 val spec = CurrencyCatalog.findByCode(editingAccount.currencyCode)
                 val div = Math.pow(10.0, spec.minorDecimals.toDouble())
-                String.format(java.util.Locale.US, "%.${spec.minorDecimals}f", editingAccount.openingBalanceMinor / div)
+                String.format(Locale.US, "%.${spec.minorDecimals}f", editingAccount.openingBalanceMinor / div)
             } else "0.00"
         )
     }
@@ -553,7 +623,7 @@ fun AccountFormSheet(
             editingAccount?.creditLimitMinor?.let {
                 val spec = CurrencyCatalog.findByCode(editingAccount.currencyCode)
                 val div = Math.pow(10.0, spec.minorDecimals.toDouble())
-                String.format(java.util.Locale.US, "%.${spec.minorDecimals}f", it / div)
+                String.format(Locale.US, "%.${spec.minorDecimals}f", it / div)
             } ?: ""
         )
     }
@@ -582,10 +652,9 @@ fun AccountFormSheet(
                 style = MaterialTheme.typography.headlineSmall,
             )
 
-            // Mandatory credential safety notice
             Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f),
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
             ) {
                 Row(
                     modifier = Modifier.padding(12.dp),
@@ -778,7 +847,7 @@ fun AccountFormSheet(
                     .fillMaxWidth()
                     .height(52.dp)
                     .testTag("save_account_button"),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
             ) {
                 Text(if (editingAccount != null) "Save Changes" else "Create Account")
             }

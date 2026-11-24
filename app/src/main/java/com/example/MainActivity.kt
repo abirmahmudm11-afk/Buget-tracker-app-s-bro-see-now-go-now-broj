@@ -171,6 +171,11 @@ fun SpendlyApp(viewModel: SpendlyViewModel) {
                                         uiState = uiState,
                                         onSelectPeriod = viewModel::setSelectedPeriod,
                                         onToggleTheme = viewModel::setThemeMode,
+                                        onTogglePrivacy = {
+                                            viewModel.updateProfileAndPreferences(
+                                                privacyHideBalances = !uiState.privacyHideBalances
+                                            )
+                                        },
                                         onOpenSettings = { navigateTopTab(SpendlyTopTab.MORE) },
                                         onAddExpense = { openAddTransaction(TransactionType.EXPENSE) },
                                         onAddIncome = { openAddTransaction(TransactionType.INCOME) },

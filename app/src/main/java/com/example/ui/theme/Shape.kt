@@ -12,16 +12,17 @@ object SpendlyTokens {
     val SpaceXl = 24.dp
     val SpaceXxl = 32.dp
 
+    val HeroRadius = 24.dp
     val CardRadius = 20.dp
-    val RowRadius = 16.dp
-    val InputRadius = 14.dp
+    val RowRadius = 18.dp
+    val InputRadius = 16.dp
     val ChipRadius = 12.dp
 }
 
 val SpendlyShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
+    extraSmall = RoundedCornerShape(10.dp),
     small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(20.dp),
+    medium = RoundedCornerShape(18.dp),
+    large = RoundedCornerShape(22.dp),
     extraLarge = RoundedCornerShape(28.dp),
 )

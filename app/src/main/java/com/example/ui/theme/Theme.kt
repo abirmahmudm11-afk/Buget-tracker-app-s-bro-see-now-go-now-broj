@@ -1,5 +1,6 @@
 package com.example.ui.theme
 
+import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -7,6 +8,9 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 
 private val SpendlyLightScheme = lightColorScheme(
     primary = LightPrimary,
@@ -83,9 +87,6 @@ object SpendlyTheme {
         get() = LocalSpendlyColors.current
 }
 
-/**
- * Defaults strictly to Light Mode (`ThemeMode.LIGHT`) so the bright colorful UI always shows first.
- */
 @Composable
 fun SpendlyTheme(
     themeMode: ThemeMode = ThemeMode.LIGHT,
@@ -99,6 +100,18 @@ fun SpendlyTheme(
 
     val colorScheme = if (darkTheme) SpendlyDarkScheme else SpendlyLightScheme
     val semanticColors = if (darkTheme) DarkSemanticColors else LightSemanticColors
+
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? Activity)?.window
+            if (window != null) {
+                val controller = WindowCompat.getInsetsController(window, view)
+                controller.isAppearanceLightStatusBars = !darkTheme
+                controller.isAppearanceLightNavigationBars = !darkTheme
+            }
+        }
+    }
 
     CompositionLocalProvider(LocalSpendlyColors provides semanticColors) {
         MaterialTheme(

@@ -1,0 +1,278 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile settings, currency preferences, notification toggles, and onboarding state.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase user UID."
+        },
+        "profileName": {
+          "type": "string",
+          "description": "User display name shown in greetings and profile."
+        },
+        "defaultCurrencyCode": {
+          "type": "string",
+          "description": "Base currency code such as USD or EUR."
+        },
+        "selectedLanguage": {
+          "type": "string",
+          "description": "Selected UI language label."
+        },
+        "themeMode": {
+          "type": "string",
+          "enum": ["LIGHT", "DARK", "SYSTEM"],
+          "description": "App appearance mode."
+        },
+        "onboardingComplete": {
+          "type": "boolean",
+          "description": "Whether initial onboarding setup has completed."
+        },
+        "budgetAlertsEnabled": {
+          "type": "boolean",
+          "description": "Whether budget threshold notifications are enabled."
+        },
+        "weeklyDigestEnabled": {
+          "type": "boolean",
+          "description": "Whether weekly cash-flow digest notifications are enabled."
+        },
+        "dailyReminderEnabled": {
+          "type": "boolean",
+          "description": "Whether daily expense logging reminders are enabled."
+        },
+        "privacyHideBalances": {
+          "type": "boolean",
+          "description": "Whether monetary amounts are masked in UI."
+        },
+        "previewDataActive": {
+          "type": "boolean",
+          "description": "Whether interactive sample ledger data is active."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp() on creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp() on mutation."
+        }
+      },
+      "required": [
+        "userId",
+        "profileName",
+        "defaultCurrencyCode",
+        "selectedLanguage",
+        "themeMode",
+        "onboardingComplete",
+        "budgetAlertsEnabled",
+        "weeklyDigestEnabled",
+        "dailyReminderEnabled",
+        "privacyHideBalances",
+        "previewDataActive",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Account": {
+      "title": "Account",
+      "description": "Manual bank account, debit/credit card, cash wallet, or savings account.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "accountType": {
+          "type": "string",
+          "enum": [
+            "BANK_ACCOUNT",
+            "DEBIT_CARD",
+            "CREDIT_CARD",
+            "PREPAID_CARD",
+            "CASH_WALLET",
+            "DIGITAL_WALLET",
+            "SAVINGS_ACCOUNT",
+            "CUSTOM"
+          ]
+        },
+        "institutionName": { "type": "string" },
+        "cardNetwork": { "type": "string" },
+        "lastFour": { "type": "string" },
+        "currencyCode": { "type": "string" },
+        "openingBalanceMinor": { "type": "integer" },
+        "creditLimitMinor": { "type": "integer" },
+        "description": { "type": "string" },
+        "archived": { "type": "boolean" },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "name",
+        "accountType",
+        "institutionName",
+        "cardNetwork",
+        "lastFour",
+        "currencyCode",
+        "openingBalanceMinor",
+        "description",
+        "archived",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "User expense, income, or transfer entry.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "txType": {
+          "type": "string",
+          "enum": ["EXPENSE", "INCOME", "TRANSFER"]
+        },
+        "amountMinor": { "type": "integer" },
+        "currencyCode": { "type": "string" },
+        "accountId": { "type": "string" },
+        "destinationAccountId": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "description": { "type": "string" },
+        "merchant": { "type": "string" },
+        "dateMillis": { "type": "integer" },
+        "notes": { "type": "string" },
+        "creditCardRepayment": { "type": "boolean" },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "txType",
+        "amountMinor",
+        "currencyCode",
+        "accountId",
+        "description",
+        "merchant",
+        "dateMillis",
+        "notes",
+        "creditCardRepayment",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Budget": {
+      "title": "Budget",
+      "description": "Monthly overall or category spending limit.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "scope": {
+          "type": "string",
+          "enum": ["OVERALL", "CATEGORY"]
+        },
+        "categoryId": { "type": "string" },
+        "limitMinor": { "type": "integer" },
+        "currencyCode": { "type": "string" },
+        "year": { "type": "integer" },
+        "month": { "type": "integer" },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "name",
+        "scope",
+        "limitMinor",
+        "currencyCode",
+        "year",
+        "month",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Expense or income category record.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "txType": {
+          "type": "string",
+          "enum": ["EXPENSE", "INCOME"]
+        },
+        "iconKey": { "type": "string" },
+        "defaultCategory": { "type": "boolean" },
+        "active": { "type": "boolean" },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "name",
+        "txType",
+        "iconKey",
+        "defaultCategory",
+        "active",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Root user profile and app preferences."
+    },
+    "/users/{userId}/accounts/{accountId}": {
+      "schema": { "$ref": "#/entities/Account" },
+      "description": "User manual accounts, cards, and wallets."
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "User income, expense, and transfer ledger entries."
+    },
+    "/users/{userId}/budgets/{budgetId}": {
+      "schema": { "$ref": "#/entities/Budget" },
+      "description": "User overall and category monthly budgets."
+    },
+    "/users/{userId}/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "User custom and default spending/income categories."
+    }
+  }
+}

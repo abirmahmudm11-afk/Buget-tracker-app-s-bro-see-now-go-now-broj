@@ -1,5 +1,9 @@
 package com.example.model
 
+import androidx.annotation.Keep
+import com.example.ui.theme.ThemeMode
+import java.util.Calendar
+
 enum class AccountType(
     val displayName: String,
     val isLiability: Boolean = false,
@@ -19,6 +23,12 @@ enum class TransactionType(val label: String) {
     EXPENSE("Expense"),
     INCOME("Income"),
     TRANSFER("Transfer"),
+}
+
+enum class HomeTransactionFilter(val label: String) {
+    ALL("All"),
+    INCOME("Income"),
+    EXPENSE("Expense"),
 }
 
 enum class BudgetScope(val label: String) {
@@ -49,11 +59,27 @@ data class CurrencySpec(
     val rateDate: String? = null,
 )
 
+@Keep
+data class UserProfileRecord(
+    val userId: String = "",
+    val profileName: String = "Alex Morgan",
+    val defaultCurrencyCode: String = "USD",
+    val selectedLanguage: String = "English",
+    val themeMode: ThemeMode = ThemeMode.LIGHT,
+    val onboardingComplete: Boolean = false,
+    val budgetAlertsEnabled: Boolean = true,
+    val weeklyDigestEnabled: Boolean = true,
+    val dailyReminderEnabled: Boolean = false,
+    val privacyHideBalances: Boolean = false,
+    val isPreviewDataActive: Boolean = false,
+)
+
+@Keep
 data class AccountRecord(
-    val id: String,
-    val name: String,
-    val type: AccountType,
-    val institutionName: String,
+    val id: String = "",
+    val name: String = "",
+    val type: AccountType = AccountType.BANK_ACCOUNT,
+    val institutionName: String = "",
     val cardNetwork: String = "",
     val lastFour: String = "",
     val currencyCode: String = "USD",
@@ -63,45 +89,58 @@ data class AccountRecord(
     val isArchived: Boolean = false,
 )
 
+@Keep
 data class CategoryRecord(
-    val id: String,
-    val name: String,
-    val type: TransactionType,
-    val iconKey: String,
+    val id: String = "",
+    val name: String = "",
+    val type: TransactionType = TransactionType.EXPENSE,
+    val iconKey: String = "shopping",
     val isDefault: Boolean = true,
     val isActive: Boolean = true,
 )
 
+@Keep
 data class TransactionRecord(
-    val id: String,
-    val type: TransactionType,
-    val amountMinor: Long,
-    val currencyCode: String,
-    val accountId: String,
+    val id: String = "",
+    val type: TransactionType = TransactionType.EXPENSE,
+    val amountMinor: Long = 0L,
+    val currencyCode: String = "USD",
+    val accountId: String = "",
     val destinationAccountId: String? = null,
     val categoryId: String? = null,
-    val description: String,
+    val description: String = "",
     val merchant: String = "",
-    val dateMillis: Long,
+    val dateMillis: Long = 0L,
     val notes: String = "",
     val isCreditCardRepayment: Boolean = false,
 )
 
+@Keep
 data class BudgetRecord(
-    val id: String,
-    val name: String,
-    val scope: BudgetScope,
+    val id: String = "",
+    val name: String = "",
+    val scope: BudgetScope = BudgetScope.OVERALL,
     val categoryId: String? = null,
-    val limitMinor: Long,
-    val currencyCode: String,
-    val year: Int,
-    val month: Int, // 1..12
+    val limitMinor: Long = 0L,
+    val currencyCode: String = "USD",
+    val year: Int = 2026,
+    val month: Int = 11, // 1..12
 )
 
 data class MonthPeriod(
     val year: Int,
     val month: Int, // 1..12
-)
+) {
+    companion object {
+        fun current(): MonthPeriod {
+            val cal = Calendar.getInstance()
+            return MonthPeriod(
+                year = cal.get(Calendar.YEAR),
+                month = cal.get(Calendar.MONTH) + 1,
+            )
+        }
+    }
+}
 
 data class AccountSummary(
     val account: AccountRecord,

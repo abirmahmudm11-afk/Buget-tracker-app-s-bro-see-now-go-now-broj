@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,26 +26,29 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.CalendarToday
-import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,13 +62,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.example.model.AccountRecord
 import com.example.model.AccountType
-import com.example.model.CategoryRecord
 import com.example.model.TransactionRecord
 import com.example.model.TransactionType
 import com.example.ui.components.SearchableCurrencySheet
@@ -72,10 +76,12 @@ import com.example.ui.components.categoryIconFor
 import com.example.ui.theme.MoneyInputStyle
 import com.example.ui.theme.SpendlyTheme
 import com.example.ui.theme.SpendlyTokens
+import com.example.ui.theme.categoryColorPair
 import com.example.util.CurrencyCatalog
 import com.example.util.DateFormatters
 import com.example.util.MoneyFormatter
 import com.example.viewmodel.SpendlyUiState
+import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -109,7 +115,7 @@ fun AddTransactionScreen(
             if (editingTransaction != null) {
                 val spec = CurrencyCatalog.findByCode(editingTransaction.currencyCode)
                 val divisor = Math.pow(10.0, spec.minorDecimals.toDouble())
-                String.format(java.util.Locale.US, "%.${spec.minorDecimals}f", editingTransaction.amountMinor / divisor)
+                String.format(Locale.US, "%.${spec.minorDecimals}f", editingTransaction.amountMinor / divisor)
             } else ""
         )
     }
@@ -147,7 +153,6 @@ fun AddTransactionScreen(
     var notes by remember { mutableStateOf(editingTransaction?.notes ?: "") }
     var dateMillis by remember { mutableStateOf(editingTransaction?.dateMillis ?: System.currentTimeMillis()) }
 
-    // Validation & UI states
     var amountError by remember { mutableStateOf<String?>(null) }
     var accountError by remember { mutableStateOf<String?>(null) }
     var categoryError by remember { mutableStateOf<String?>(null) }
@@ -155,7 +160,7 @@ fun AddTransactionScreen(
     var isSaving by remember { mutableStateOf(false) }
 
     var showCategorySheet by remember { mutableStateOf(false) }
-    var showAccountSheetForDest by remember { mutableStateOf<Boolean?>(null) } // false = source, true = dest
+    var showAccountSheetForDest by remember { mutableStateOf<Boolean?>(null) }
     var showCurrencySheet by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -178,10 +183,19 @@ fun AddTransactionScreen(
     val currencySpec = CurrencyCatalog.findByCode(selectedCurrencyCode)
     val semantic = SpendlyTheme.semantic
 
+    val (activeAccent, activeTintBg) = when (selectedType) {
+        TransactionType.EXPENSE -> semantic.expense to semantic.expenseContainer
+        TransactionType.INCOME -> semantic.income to semantic.incomeContainer
+        TransactionType.TRANSFER -> semantic.transfer to semantic.transferContainer
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
                 title = {
                     Text(
                         text = if (editingTransaction != null) "Edit Transaction" else "New Transaction",
@@ -199,17 +213,17 @@ fun AddTransactionScreen(
             if (activeAccounts.isNotEmpty()) {
                 Surface(
                     color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    shadowElevation = 10.dp,
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .navigationBarsPadding()
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Button(
                             onClick = {
-                                // Validate all fields cleanly
                                 val parsedMinor = MoneyFormatter.parseMajorToMinor(amountText, selectedCurrencyCode)
                                 amountError = when {
                                     amountText.isBlank() -> "Enter an amount"
@@ -233,7 +247,7 @@ fun AddTransactionScreen(
                                 if (amountError == null && accountError == null && categoryError == null && descriptionError == null && parsedMinor != null) {
                                     isSaving = true
                                     scope.launch {
-                                        delay(140)
+                                        delay(120)
                                         onSaveTransaction(
                                             editingTransaction?.id,
                                             selectedType,
@@ -252,25 +266,29 @@ fun AddTransactionScreen(
                                 }
                             },
                             enabled = !isSaving,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = activeAccent,
+                                contentColor = Color.White,
+                            ),
                             modifier = Modifier
                                 .widthIn(max = 600.dp)
                                 .fillMaxWidth()
                                 .height(54.dp)
                                 .testTag("save_transaction_button"),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(18.dp),
                         ) {
                             if (isSaving) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(20.dp),
                                     strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    color = Color.White,
                                 )
                                 Spacer(Modifier.width(10.dp))
                                 Text("Saving...")
                             } else {
                                 Text(
-                                    text = if (editingTransaction != null) "Update Transaction" else "Save Transaction",
-                                    style = MaterialTheme.typography.titleMedium,
+                                    text = if (editingTransaction != null) "Update Transaction" else "Save ${selectedType.label}",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 )
                             }
                         }
@@ -327,23 +345,28 @@ fun AddTransactionScreen(
                     .widthIn(max = 600.dp)
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                // 1. Segmented Type Selector
+                // 1. Type-Colored Segmented Control
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 1.dp,
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            .padding(5.dp),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
                     ) {
                         TransactionType.entries.forEach { type ->
                             val selected = selectedType == type
+                            val pillColor = when (type) {
+                                TransactionType.EXPENSE -> semantic.expense
+                                TransactionType.INCOME -> semantic.income
+                                TransactionType.TRANSFER -> semantic.transfer
+                            }
                             Surface(
                                 onClick = {
                                     selectedType = type
@@ -360,14 +383,14 @@ fun AddTransactionScreen(
                                     .weight(1f)
                                     .height(44.dp)
                                     .testTag("tx_type_${type.name.lowercase()}"),
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer,
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (selected) pillColor else Color.Transparent,
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Text(
                                         text = type.label,
                                         style = MaterialTheme.typography.labelLarge,
-                                        color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
@@ -375,20 +398,18 @@ fun AddTransactionScreen(
                     }
                 }
 
-                // 2. Prominent Amount Hero Input
+                // 2. Hero Amount Entry Stage
                 Surface(
-                    shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    border = BorderStroke(
-                        1.5.dp,
-                        if (amountError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant,
-                    ),
+                    shape = RoundedCornerShape(SpendlyTokens.HeroRadius),
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 3.dp,
+                    border = if (amountError != null) BorderStroke(1.5.dp, MaterialTheme.colorScheme.error) else null,
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -396,20 +417,20 @@ fun AddTransactionScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = "AMOUNT",
+                                text = "${selectedType.label.uppercase()} AMOUNT",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = activeAccent,
                             )
                             Surface(
                                 onClick = { showCurrencySheet = true },
                                 modifier = Modifier.testTag("tx_currency_chip"),
                                 shape = RoundedCornerShape(999.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer,
+                                color = activeTintBg,
                             ) {
                                 Text(
                                     text = "${currencySpec.code} (${currencySpec.symbol})",
                                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    color = activeAccent,
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                 )
                             }
@@ -425,32 +446,78 @@ fun AddTransactionScreen(
                                 .fillMaxWidth()
                                 .focusRequester(amountFocus)
                                 .testTag("tx_amount_input"),
-                            textStyle = MoneyInputStyle.copy(
-                                color = when (selectedType) {
-                                    TransactionType.EXPENSE -> semantic.expense
-                                    TransactionType.INCOME -> semantic.income
-                                    TransactionType.TRANSFER -> semantic.transfer
-                                },
-                            ),
+                            textStyle = MoneyInputStyle.copy(color = activeAccent),
                             placeholder = {
                                 Text(
                                     text = if (currencySpec.minorDecimals == 0) "0" else "0.00",
                                     style = MoneyInputStyle,
-                                    color = MaterialTheme.colorScheme.outline,
+                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                                 )
                             },
                             prefix = {
                                 Text(
                                     text = currencySpec.symbol,
                                     style = MoneyInputStyle,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = activeAccent.copy(alpha = 0.7f),
                                 )
                             },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             singleLine = true,
                             isError = amountError != null,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedContainerColor = activeTintBg.copy(alpha = 0.3f),
+                                focusedContainerColor = activeTintBg.copy(alpha = 0.45f),
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedBorderColor = activeAccent.copy(alpha = 0.5f),
+                            ),
                         )
+
+                        // Quick amount helper pills
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            listOf(10, 25, 50, 100).forEach { addVal ->
+                                Surface(
+                                    onClick = {
+                                        val current = amountText.toDoubleOrNull() ?: 0.0
+                                        val next = current + addVal
+                                        amountText = if (currencySpec.minorDecimals == 0) {
+                                            next.toLong().toString()
+                                        } else {
+                                            String.format(Locale.US, "%.${currencySpec.minorDecimals}f", next)
+                                        }
+                                        amountError = null
+                                    },
+                                    shape = RoundedCornerShape(999.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                ) {
+                                    Text(
+                                        text = "+${currencySpec.symbol}$addVal",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    )
+                                }
+                            }
+                            if (amountText.isNotEmpty()) {
+                                Surface(
+                                    onClick = { amountText = "" },
+                                    shape = RoundedCornerShape(999.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainer,
+                                ) {
+                                    Text(
+                                        text = "Clear",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    )
+                                }
+                            }
+                        }
 
                         if (amountError != null) {
                             Text(
@@ -462,108 +529,158 @@ fun AddTransactionScreen(
                     }
                 }
 
-                // 3. Category & Account Selectors
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (selectedType != TransactionType.TRANSFER) {
-                        PickerFieldCard(
-                            label = "Category",
-                            value = selectedCategory?.name ?: "Choose category",
-                            leadingIcon = categoryIconFor(selectedCategory?.iconKey),
-                            errorText = categoryError,
-                            onClick = { showCategorySheet = true },
-                            testTag = "tx_category_picker",
-                        )
-                    }
-
-                    PickerFieldCard(
-                        label = if (selectedType == TransactionType.TRANSFER) "From Account" else "Account",
-                        value = selectedAccount?.let { "${it.name} (${it.currencyCode})" } ?: "Choose account",
-                        leadingIcon = selectedAccount?.let { accountTypeIcon(it.type) } ?: Icons.Rounded.AccountBalanceWallet,
-                        errorText = if (selectedType != TransactionType.TRANSFER) accountError else null,
-                        onClick = { showAccountSheetForDest = false },
-                        testTag = "tx_account_picker",
-                    )
-
-                    if (selectedType == TransactionType.TRANSFER) {
-                        PickerFieldCard(
-                            label = "To Account",
-                            value = destinationAccount?.let { "${it.name} (${it.currencyCode})" } ?: "Choose destination account",
-                            leadingIcon = destinationAccount?.let { accountTypeIcon(it.type) } ?: Icons.Rounded.SwapVert,
-                            errorText = accountError,
-                            onClick = { showAccountSheetForDest = true },
-                            testTag = "tx_dest_account_picker",
-                        )
-
-                        if (destinationAccount?.type == AccountType.CREDIT_CARD && selectedAccountId != destinationAccountId) {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                            ) {
-                                Text(
-                                    text = "Detected Credit Card Repayment: Reduces card outstanding balance without counting as a second shopping expense.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.padding(12.dp),
-                                )
-                            }
+                // 3. Grouped Category, Account & Date Pickers
+                Surface(
+                    shape = RoundedCornerShape(SpendlyTokens.CardRadius),
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 2.dp,
+                ) {
+                    Column {
+                        if (selectedType != TransactionType.TRANSFER) {
+                            val (catTint, catBg) = categoryColorPair(selectedCategory?.iconKey)
+                            PickerFieldRow(
+                                label = "Category",
+                                value = selectedCategory?.name ?: "Choose category",
+                                leadingIcon = categoryIconFor(selectedCategory?.iconKey),
+                                iconTint = catTint,
+                                iconBg = catBg,
+                                errorText = categoryError,
+                                onClick = { showCategorySheet = true },
+                                testTag = "tx_category_picker",
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = 68.dp, end = 16.dp),
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                            )
                         }
-                    }
 
-                    PickerFieldCard(
-                        label = "Date",
-                        value = DateFormatters.formatDateGroupHeader(dateMillis),
-                        leadingIcon = Icons.Rounded.CalendarToday,
-                        errorText = null,
-                        onClick = { showDatePicker = true },
-                        testTag = "tx_date_picker",
-                    )
+                        PickerFieldRow(
+                            label = if (selectedType == TransactionType.TRANSFER) "From Account" else "Account",
+                            value = selectedAccount?.let { "${it.name} (${it.currencyCode})" } ?: "Choose account",
+                            leadingIcon = selectedAccount?.let { accountTypeIcon(it.type) } ?: Icons.Rounded.AccountBalanceWallet,
+                            iconTint = MaterialTheme.colorScheme.primary,
+                            iconBg = MaterialTheme.colorScheme.primaryContainer,
+                            errorText = if (selectedType != TransactionType.TRANSFER) accountError else null,
+                            onClick = { showAccountSheetForDest = false },
+                            testTag = "tx_account_picker",
+                        )
+
+                        if (selectedType == TransactionType.TRANSFER) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = 68.dp, end = 16.dp),
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                            )
+                            PickerFieldRow(
+                                label = "To Account",
+                                value = destinationAccount?.let { "${it.name} (${it.currencyCode})" } ?: "Choose destination account",
+                                leadingIcon = destinationAccount?.let { accountTypeIcon(it.type) } ?: Icons.Rounded.SwapVert,
+                                iconTint = semantic.transfer,
+                                iconBg = semantic.transferContainer,
+                                errorText = accountError,
+                                onClick = { showAccountSheetForDest = true },
+                                testTag = "tx_dest_account_picker",
+                            )
+                        }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 68.dp, end = 16.dp),
+                            thickness = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                        )
+
+                        PickerFieldRow(
+                            label = "Date",
+                            value = DateFormatters.formatDateGroupHeader(dateMillis),
+                            leadingIcon = Icons.Rounded.CalendarToday,
+                            iconTint = semantic.warning,
+                            iconBg = semantic.warningContainer,
+                            errorText = null,
+                            onClick = { showDatePicker = true },
+                            testTag = "tx_date_picker",
+                        )
+                    }
                 }
 
-                // 4. Description, Merchant, Notes
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = {
-                        description = it
-                        descriptionError = null
-                    },
-                    label = { Text("Description *") },
-                    placeholder = { Text("e.g., Weekly groceries, Coffee, Rent") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("tx_description_input"),
-                    singleLine = true,
-                    isError = descriptionError != null,
-                    supportingText = descriptionError?.let { err -> { Text(err) } },
-                    shape = RoundedCornerShape(14.dp),
-                )
+                if (selectedType == TransactionType.TRANSFER &&
+                    destinationAccount?.type == AccountType.CREDIT_CARD &&
+                    selectedAccountId != destinationAccountId
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                    ) {
+                        Text(
+                            text = "Detected Credit Card Repayment: Reduces card outstanding balance without counting as a second shopping expense.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(14.dp),
+                        )
+                    }
+                }
 
-                OutlinedTextField(
-                    value = merchant,
-                    onValueChange = {
-                        merchant = it
-                        descriptionError = null
-                    },
-                    label = { Text("Merchant or Payee (Optional)") },
-                    placeholder = { Text("e.g., Trader Joe's, Landlord") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("tx_merchant_input"),
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
-                )
+                // 4. Clean Details Card
+                Surface(
+                    shape = RoundedCornerShape(SpendlyTokens.CardRadius),
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 2.dp,
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            text = "DETAILS",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        OutlinedTextField(
+                            value = description,
+                            onValueChange = {
+                                description = it
+                                descriptionError = null
+                            },
+                            label = { Text("Description *") },
+                            placeholder = { Text("e.g., Weekly groceries, Coffee, Rent") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("tx_description_input"),
+                            singleLine = true,
+                            isError = descriptionError != null,
+                            supportingText = descriptionError?.let { err -> { Text(err) } },
+                            shape = RoundedCornerShape(14.dp),
+                        )
 
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text("Note (Optional)") },
-                    placeholder = { Text("Reference details, split info, receipt note...") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("tx_notes_input"),
-                    minLines = 2,
-                    maxLines = 4,
-                    shape = RoundedCornerShape(14.dp),
-                )
+                        OutlinedTextField(
+                            value = merchant,
+                            onValueChange = {
+                                merchant = it
+                                descriptionError = null
+                            },
+                            label = { Text("Merchant or Payee (Optional)") },
+                            placeholder = { Text("e.g., Trader Joe's, Landlord") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("tx_merchant_input"),
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
+                        )
+
+                        OutlinedTextField(
+                            value = notes,
+                            onValueChange = { notes = it },
+                            label = { Text("Note (Optional)") },
+                            placeholder = { Text("Reference details, split info, receipt note...") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("tx_notes_input"),
+                            minLines = 2,
+                            maxLines = 4,
+                            shape = RoundedCornerShape(14.dp),
+                        )
+                    }
+                }
 
                 Spacer(Modifier.height(12.dp))
             }
@@ -585,10 +702,11 @@ fun AddTransactionScreen(
                 Text("Select ${selectedType.label} Category", style = MaterialTheme.typography.headlineSmall)
                 LazyColumn(
                     modifier = Modifier.height(300.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(filteredCategories, key = { it.id }) { cat ->
                         val active = cat.id == selectedCategoryId
+                        val (catTint, catBg) = categoryColorPair(cat.iconKey)
                         Surface(
                             onClick = {
                                 selectedCategoryId = cat.id
@@ -596,9 +714,9 @@ fun AddTransactionScreen(
                                 showCategorySheet = false
                             },
                             modifier = Modifier.fillMaxWidth().testTag("pick_cat_${cat.id}"),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(16.dp),
                             color = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            border = if (active) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
                         ) {
                             Row(
                                 modifier = Modifier.padding(14.dp),
@@ -609,10 +727,18 @@ fun AddTransactionScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
-                                    Icon(categoryIconFor(cat.iconKey), contentDescription = null)
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(catBg),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Icon(categoryIconFor(cat.iconKey), contentDescription = null, tint = catTint, modifier = Modifier.size(18.dp))
+                                    }
                                     Text(cat.name, style = MaterialTheme.typography.titleSmall)
                                 }
-                                if (active) Icon(Icons.Rounded.Check, contentDescription = "Selected")
+                                if (active) Icon(Icons.Rounded.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
@@ -640,7 +766,7 @@ fun AddTransactionScreen(
                 )
                 LazyColumn(
                     modifier = Modifier.height(300.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(activeAccounts, key = { it.id }) { acc ->
                         val currentId = if (isDest) destinationAccountId else selectedAccountId
@@ -657,9 +783,9 @@ fun AddTransactionScreen(
                                 showAccountSheetForDest = null
                             },
                             modifier = Modifier.fillMaxWidth().testTag("pick_acc_${acc.id}"),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(16.dp),
                             color = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            border = if (active) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
                         ) {
                             Row(
                                 modifier = Modifier.padding(14.dp),
@@ -670,7 +796,7 @@ fun AddTransactionScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
-                                    Icon(accountTypeIcon(acc.type), contentDescription = null)
+                                    Icon(accountTypeIcon(acc.type), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                     Column {
                                         Text(acc.name, style = MaterialTheme.typography.titleSmall)
                                         Text(
@@ -680,7 +806,7 @@ fun AddTransactionScreen(
                                         )
                                     }
                                 }
-                                if (active) Icon(Icons.Rounded.Check, contentDescription = "Selected")
+                                if (active) Icon(Icons.Rounded.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
@@ -726,29 +852,26 @@ fun AddTransactionScreen(
 }
 
 @Composable
-private fun PickerFieldCard(
+private fun PickerFieldRow(
     label: String,
     value: String,
     leadingIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconTint: Color,
+    iconBg: Color,
     errorText: String?,
     onClick: () -> Unit,
     testTag: String,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column {
         Surface(
             onClick = onClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag(testTag),
-            shape = RoundedCornerShape(14.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            border = BorderStroke(
-                1.dp,
-                if (errorText != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant,
-            ),
+            color = Color.Transparent,
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
@@ -757,17 +880,26 @@ private fun PickerFieldCard(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.weight(1f),
                 ) {
-                    Icon(
-                        imageVector = leadingIcon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(iconBg),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = leadingIcon,
+                            contentDescription = null,
+                            tint = iconTint,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                     Column {
                         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(value, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
-                Icon(Icons.Rounded.ChevronRight, contentDescription = null)
+                Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         if (errorText != null) {
@@ -775,7 +907,7 @@ private fun PickerFieldCard(
                 text = errorText,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(start = 6.dp),
+                modifier = Modifier.padding(start = 68.dp, bottom = 8.dp),
             )
         }
     }

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -19,6 +20,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -27,6 +29,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
@@ -54,14 +57,18 @@ import com.example.model.MonthPeriod
 import com.example.model.TransactionRecord
 import com.example.model.TransactionType
 import com.example.ui.components.BudgetProgressCard
+import com.example.ui.components.BudgetRingGauge
 import com.example.ui.components.EmptyLedgerState
+import com.example.ui.components.LedgerGroupCard
 import com.example.ui.components.MonthPickerSheet
 import com.example.ui.components.MonthSelectorChip
 import com.example.ui.components.TransactionLedgerRow
+import com.example.ui.theme.SpendlyTheme
 import com.example.ui.theme.SpendlyTokens
 import com.example.util.DateFormatters
 import com.example.util.MoneyFormatter
 import com.example.viewmodel.SpendlyUiState
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,6 +87,7 @@ fun BudgetsScreen(
     onDeleteBudget: (String) -> Unit,
     onOpenTransactionDetail: (TransactionRecord) -> Unit,
 ) {
+    val semantic = SpendlyTheme.semantic
     var showMonthPicker by remember { mutableStateOf(false) }
     var showBudgetForm by remember { mutableStateOf(false) }
     var editingBudget by remember { mutableStateOf<BudgetRecord?>(null) }
@@ -98,7 +106,7 @@ fun BudgetsScreen(
                 .fillMaxSize()
                 .testTag("budgets_list"),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
                 Row(
@@ -109,20 +117,25 @@ fun BudgetsScreen(
                     Column {
                         Text("Budgets", style = MaterialTheme.typography.headlineMedium)
                         Text(
-                            text = "Track spending limits without double-counting repayments",
+                            text = "Monthly limits without double-counting repayments",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        OutlinedButton(
-                            onClick = { showHistoryDialog = true },
-                            modifier = Modifier.testTag("budget_history_button"),
-                            shape = RoundedCornerShape(12.dp),
+                    Surface(
+                        onClick = { showHistoryDialog = true },
+                        modifier = Modifier.testTag("budget_history_button"),
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        shadowElevation = 2.dp,
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            Icon(Icons.Rounded.History, contentDescription = "Budget history")
-                            Spacer(Modifier.padding(2.dp))
-                            Text("History")
+                            Icon(Icons.Rounded.History, contentDescription = "Budget history", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                            Text("History", style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
@@ -145,34 +158,95 @@ fun BudgetsScreen(
                             showBudgetForm = true
                         },
                         modifier = Modifier.testTag("add_budget_button"),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                     ) {
-                        Icon(Icons.Rounded.Add, contentDescription = null)
-                        Spacer(Modifier.padding(2.dp))
+                        Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.padding(3.dp))
                         Text("Add Budget")
                     }
                 }
             }
 
-            // Overall Monthly Budget
+            // Overall Monthly Budget Ring Hero Card
             item {
                 Text(
                     text = "Overall Monthly Budget",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 )
             }
 
             if (overall != null) {
+                val ringColor = when {
+                    overall.isOverspent -> semantic.expense
+                    overall.isNearLimit -> semantic.warning
+                    else -> semantic.income
+                }
                 item {
-                    BudgetProgressCard(
-                        summary = overall,
-                        hideBalances = hide,
+                    Surface(
                         onClick = {
                             editingBudget = overall.budget
                             defaultScope = BudgetScope.OVERALL
                             showBudgetForm = true
                         },
-                    )
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("budget_card_${overall.budget.id}"),
+                        shape = RoundedCornerShape(SpendlyTokens.HeroRadius),
+                        color = MaterialTheme.colorScheme.surface,
+                        shadowElevation = 3.dp,
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(18.dp),
+                        ) {
+                            BudgetRingGauge(
+                                progress = overall.progress,
+                                ringColor = ringColor,
+                                trackColor = MaterialTheme.colorScheme.surfaceContainer,
+                                centerValue = "${(overall.progress * 100).toInt()}%",
+                                centerLabel = if (overall.isOverspent) "OVER" else "USED",
+                            )
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = DateFormatters.formatMonthPeriod(uiState.selectedPeriod),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Rounded.Edit,
+                                        contentDescription = "Edit overall budget",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
+                                Text(
+                                    text = if (hide) "••••••" else if (overall.remainingMinor < 0) {
+                                        "Over by ${MoneyFormatter.formatMinor(-overall.remainingMinor, overall.budget.currencyCode)}"
+                                    } else {
+                                        "${MoneyFormatter.formatMinor(overall.remainingMinor, overall.budget.currencyCode)} left"
+                                    },
+                                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                    color = if (overall.isOverspent) semantic.expense else MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text = if (hide) "Limit hidden" else "${MoneyFormatter.formatMinor(overall.spentMinor, overall.budget.currencyCode)} spent of ${MoneyFormatter.formatMinor(overall.budget.limitMinor, overall.budget.currencyCode)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
                 }
             } else {
                 item {
@@ -198,7 +272,7 @@ fun BudgetsScreen(
                 ) {
                     Text(
                         text = "Category Budgets (${categorySummaries.size})",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     )
                     TextButton(
                         onClick = {
@@ -215,13 +289,13 @@ fun BudgetsScreen(
             if (categorySummaries.isEmpty()) {
                 item {
                     Surface(
-                        shape = RoundedCornerShape(SpendlyTokens.RowRadius),
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        shape = RoundedCornerShape(SpendlyTokens.CardRadius),
+                        color = MaterialTheme.colorScheme.surface,
+                        shadowElevation = 2.dp,
                     ) {
                         Column(
-                            modifier = Modifier.fillMaxWidth().padding(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             Text("No category budgets set", style = MaterialTheme.typography.titleSmall)
                             Text(
@@ -314,6 +388,7 @@ fun BudgetsScreen(
                             selectedSummaryForBreakdown = null
                             showBudgetForm = true
                         },
+                        shape = RoundedCornerShape(12.dp),
                     ) {
                         Text("Edit Limit")
                     }
@@ -329,20 +404,30 @@ fun BudgetsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
-                    catTx.forEach { tx ->
-                        TransactionLedgerRow(
-                            transaction = tx,
-                            category = summary.category,
-                            accountName = uiState.accountById(tx.accountId)?.name ?: "Account",
-                            destinationAccountName = null,
-                            defaultCurrencyCode = uiState.defaultCurrencyCode,
-                            convertedBaseMinor = uiState.convertToBase(tx.amountMinor, tx.currencyCode),
-                            hideBalances = hide,
-                            onClick = {
-                                selectedSummaryForBreakdown = null
-                                onOpenTransactionDetail(tx)
-                            },
-                        )
+                    LedgerGroupCard {
+                        catTx.forEachIndexed { idx, tx ->
+                            TransactionLedgerRow(
+                                transaction = tx,
+                                category = summary.category,
+                                accountName = uiState.accountById(tx.accountId)?.name ?: "Account",
+                                destinationAccountName = null,
+                                defaultCurrencyCode = uiState.defaultCurrencyCode,
+                                convertedBaseMinor = uiState.convertToBase(tx.amountMinor, tx.currencyCode),
+                                hideBalances = hide,
+                                onClick = {
+                                    selectedSummaryForBreakdown = null
+                                    onOpenTransactionDetail(tx)
+                                },
+                                grouped = true,
+                            )
+                            if (idx < catTx.lastIndex) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(start = 72.dp, end = 16.dp),
+                                    thickness = 0.5.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -366,9 +451,8 @@ fun BudgetsScreen(
                                     onSelectPeriod(period)
                                     showHistoryDialog = false
                                 },
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(14.dp),
                                 color = MaterialTheme.colorScheme.surfaceContainerLow,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -422,7 +506,7 @@ private fun BudgetFormSheet(
     var limitText by remember {
         mutableStateOf(
             if (editingBudget != null) {
-                String.format(java.util.Locale.US, "%.2f", editingBudget.limitMinor / 100.0)
+                String.format(Locale.US, "%.2f", editingBudget.limitMinor / 100.0)
             } else ""
         )
     }
@@ -456,8 +540,8 @@ private fun BudgetFormSheet(
                     Surface(
                         onClick = { scope = s },
                         modifier = Modifier.weight(1f).height(44.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer,
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerLow,
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
@@ -538,7 +622,7 @@ private fun BudgetFormSheet(
                     .fillMaxWidth()
                     .height(52.dp)
                     .testTag("save_budget_button"),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
             ) {
                 Text(if (editingBudget != null) "Update Budget" else "Save Budget")
             }
@@ -547,7 +631,7 @@ private fun BudgetFormSheet(
                 OutlinedButton(
                     onClick = onDelete,
                     modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(16.dp),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 ) {

@@ -1,0 +1,265 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.userId is string && data.userId == userId &&
+        data.profileName is string && data.profileName.size() >= 1 && data.profileName.size() <= 80 &&
+        data.defaultCurrencyCode is string && data.defaultCurrencyCode.size() >= 3 && data.defaultCurrencyCode.size() <= 5 &&
+        data.selectedLanguage is string && data.selectedLanguage.size() >= 1 && data.selectedLanguage.size() <= 40 &&
+        data.themeMode in ['LIGHT', 'DARK', 'SYSTEM'] &&
+        data.onboardingComplete is bool &&
+        data.budgetAlertsEnabled is bool &&
+        data.weeklyDigestEnabled is bool &&
+        data.dailyReminderEnabled is bool &&
+        data.privacyHideBalances is bool &&
+        data.previewDataActive is bool &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidAccount(data, userId) {
+      return data.userId is string && data.userId == userId &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+        data.accountType in [
+          'BANK_ACCOUNT', 'DEBIT_CARD', 'CREDIT_CARD', 'PREPAID_CARD',
+          'CASH_WALLET', 'DIGITAL_WALLET', 'SAVINGS_ACCOUNT', 'CUSTOM'
+        ] &&
+        data.institutionName is string && data.institutionName.size() <= 80 &&
+        data.cardNetwork is string && data.cardNetwork.size() <= 40 &&
+        data.lastFour is string && data.lastFour.size() <= 4 &&
+        data.currencyCode is string && data.currencyCode.size() >= 3 && data.currencyCode.size() <= 5 &&
+        data.openingBalanceMinor is int &&
+        (!('creditLimitMinor' in data) || (data.creditLimitMinor is int && data.creditLimitMinor >= 0)) &&
+        data.description is string && data.description.size() <= 240 &&
+        data.archived is bool &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidTransaction(data, userId) {
+      return data.userId is string && data.userId == userId &&
+        data.txType in ['EXPENSE', 'INCOME', 'TRANSFER'] &&
+        data.amountMinor is int && data.amountMinor > 0 &&
+        data.currencyCode is string && data.currencyCode.size() >= 3 && data.currencyCode.size() <= 5 &&
+        data.accountId is string && data.accountId.size() >= 1 && data.accountId.size() <= 128 &&
+        (!('destinationAccountId' in data) || (data.destinationAccountId is string && data.destinationAccountId.size() >= 1 && data.destinationAccountId.size() <= 128)) &&
+        (!('categoryId' in data) || (data.categoryId is string && data.categoryId.size() >= 1 && data.categoryId.size() <= 128)) &&
+        data.description is string && data.description.size() <= 160 &&
+        data.merchant is string && data.merchant.size() <= 100 &&
+        data.dateMillis is int && data.dateMillis > 0 &&
+        data.notes is string && data.notes.size() <= 500 &&
+        data.creditCardRepayment is bool &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidBudget(data, userId) {
+      return data.userId is string && data.userId == userId &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+        data.scope in ['OVERALL', 'CATEGORY'] &&
+        (!('categoryId' in data) || (data.categoryId is string && data.categoryId.size() >= 1 && data.categoryId.size() <= 128)) &&
+        data.limitMinor is int && data.limitMinor > 0 &&
+        data.currencyCode is string && data.currencyCode.size() >= 3 && data.currencyCode.size() <= 5 &&
+        data.year is int && data.year >= 2000 && data.year <= 2100 &&
+        data.month is int && data.month >= 1 && data.month <= 12 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCategory(data, userId) {
+      return data.userId is string && data.userId == userId &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 60 &&
+        data.txType in ['EXPENSE', 'INCOME'] &&
+        data.iconKey is string && data.iconKey.size() >= 1 && data.iconKey.size() <= 40 &&
+        data.defaultCategory is bool &&
+        data.active is bool &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+
+      allow create: if isOwner(userId) &&
+        isValidId(userId) &&
+        incoming().keys().hasAll([
+          'userId', 'profileName', 'defaultCurrencyCode', 'selectedLanguage',
+          'themeMode', 'onboardingComplete', 'budgetAlertsEnabled',
+          'weeklyDigestEnabled', 'dailyReminderEnabled', 'privacyHideBalances',
+          'previewDataActive', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'userId', 'profileName', 'defaultCurrencyCode', 'selectedLanguage',
+          'themeMode', 'onboardingComplete', 'budgetAlertsEnabled',
+          'weeklyDigestEnabled', 'dailyReminderEnabled', 'privacyHideBalances',
+          'previewDataActive', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidUserProfile(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+        isValidId(userId) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        isValidUserProfile(incoming(), userId) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'profileName', 'defaultCurrencyCode', 'selectedLanguage',
+          'themeMode', 'onboardingComplete', 'budgetAlertsEnabled',
+          'weeklyDigestEnabled', 'dailyReminderEnabled', 'privacyHideBalances',
+          'previewDataActive', 'updatedAt'
+        ]);
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      match /accounts/{accountId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(accountId);
+
+        allow create: if isOwner(userId) &&
+          isValidId(accountId) &&
+          incoming().keys().hasAll([
+            'userId', 'name', 'accountType', 'institutionName', 'cardNetwork',
+            'lastFour', 'currencyCode', 'openingBalanceMinor', 'description',
+            'archived', 'createdAt', 'updatedAt'
+          ]) &&
+          incoming().keys().hasOnly([
+            'userId', 'name', 'accountType', 'institutionName', 'cardNetwork',
+            'lastFour', 'currencyCode', 'openingBalanceMinor', 'creditLimitMinor',
+            'description', 'archived', 'createdAt', 'updatedAt'
+          ]) &&
+          isValidAccount(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+          isValidId(accountId) &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          isValidAccount(incoming(), userId) &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'accountType', 'institutionName', 'cardNetwork',
+            'lastFour', 'currencyCode', 'openingBalanceMinor', 'creditLimitMinor',
+            'description', 'archived', 'updatedAt'
+          ]);
+
+        allow delete: if isOwner(userId) && isValidId(accountId);
+      }
+
+      match /transactions/{transactionId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(transactionId);
+
+        allow create: if isOwner(userId) &&
+          isValidId(transactionId) &&
+          incoming().keys().hasAll([
+            'userId', 'txType', 'amountMinor', 'currencyCode', 'accountId',
+            'description', 'merchant', 'dateMillis', 'notes',
+            'creditCardRepayment', 'createdAt', 'updatedAt'
+          ]) &&
+          incoming().keys().hasOnly([
+            'userId', 'txType', 'amountMinor', 'currencyCode', 'accountId',
+            'destinationAccountId', 'categoryId', 'description', 'merchant',
+            'dateMillis', 'notes', 'creditCardRepayment', 'createdAt', 'updatedAt'
+          ]) &&
+          isValidTransaction(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+          isValidId(transactionId) &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          isValidTransaction(incoming(), userId) &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'txType', 'amountMinor', 'currencyCode', 'accountId',
+            'destinationAccountId', 'categoryId', 'description', 'merchant',
+            'dateMillis', 'notes', 'creditCardRepayment', 'updatedAt'
+          ]);
+
+        allow delete: if isOwner(userId) && isValidId(transactionId);
+      }
+
+      match /budgets/{budgetId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(budgetId);
+
+        allow create: if isOwner(userId) &&
+          isValidId(budgetId) &&
+          incoming().keys().hasAll([
+            'userId', 'name', 'scope', 'limitMinor', 'currencyCode',
+            'year', 'month', 'createdAt', 'updatedAt'
+          ]) &&
+          incoming().keys().hasOnly([
+            'userId', 'name', 'scope', 'categoryId', 'limitMinor',
+            'currencyCode', 'year', 'month', 'createdAt', 'updatedAt'
+          ]) &&
+          isValidBudget(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+          isValidId(budgetId) &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          isValidBudget(incoming(), userId) &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'scope', 'categoryId', 'limitMinor',
+            'currencyCode', 'year', 'month', 'updatedAt'
+          ]);
+
+        allow delete: if isOwner(userId) && isValidId(budgetId);
+      }
+
+      match /categories/{categoryId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(categoryId);
+
+        allow create: if isOwner(userId) &&
+          isValidId(categoryId) &&
+          incoming().keys().hasAll([
+            'userId', 'name', 'txType', 'iconKey', 'defaultCategory',
+            'active', 'createdAt', 'updatedAt'
+          ]) &&
+          incoming().keys().hasOnly([
+            'userId', 'name', 'txType', 'iconKey', 'defaultCategory',
+            'active', 'createdAt', 'updatedAt'
+          ]) &&
+          isValidCategory(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+          isValidId(categoryId) &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          isValidCategory(incoming(), userId) &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'txType', 'iconKey', 'defaultCategory', 'active', 'updatedAt'
+          ]);
+
+        allow delete: if isOwner(userId) && isValidId(categoryId);
+      }
+    }
+  }
+}
