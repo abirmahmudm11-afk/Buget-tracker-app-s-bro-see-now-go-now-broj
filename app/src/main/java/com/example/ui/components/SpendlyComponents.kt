@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -184,54 +186,121 @@ fun SpendlyBrandLogo(modifier: Modifier = Modifier) {
 }
 
 /**
- * Clean native Material 3 bottom navigation bar: tabs navigate cleanly without inline action orbs.
+ * Floating capsule pill navigation bar paired with a circular quick-add (+) FAB.
  */
 @Composable
 fun SpendlyBottomNavigationBar(
     currentRoute: String,
     onSelectTab: (SpendlyTopTab) -> Unit,
+    onAddClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        HorizontalDivider(
-            thickness = 0.5.dp,
-            color = MaterialTheme.colorScheme.outlineVariant,
-        )
-        NavigationBar(
-            containerColor = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp,
+    val semantic = SpendlyTheme.semantic
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Surface(
+            modifier = Modifier
+                .weight(1f)
+                .height(60.dp),
+            shape = RoundedCornerShape(999.dp),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = if (semantic.isDark) 0.96f else 0.98f),
+            border = BorderStroke(1.dp, semantic.surfaceBorder),
+            shadowElevation = if (semantic.isDark) 4.dp else 6.dp,
         ) {
-            SpendlyTopTab.entries.forEach { tab ->
-                val selected = currentRoute == tab.route
-                NavigationBarItem(
-                    selected = selected,
-                    onClick = { onSelectTab(tab) },
-                    icon = {
-                        Icon(
-                            imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
-                            contentDescription = tab.label,
-                        )
-                    },
-                    label = {
-                        Text(
-                            text = tab.label,
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 6.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                SpendlyTopTab.entries.forEach { tab ->
+                    val selected = currentRoute == tab.route
+                    val pillColor by animateColorAsState(
+                        targetValue = if (selected) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            Color.Transparent
+                        },
+                        label = "navPillBg_${tab.route}",
+                    )
+                    val contentColor by animateColorAsState(
+                        targetValue = if (selected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        label = "navPillTint_${tab.route}",
+                    )
+
+                    Surface(
+                        onClick = { onSelectTab(tab) },
+                        shape = RoundedCornerShape(999.dp),
+                        color = pillColor,
+                        modifier = Modifier
+                            .height(48.dp)
+                            .pressBounce(pressScale = 0.90f, hapticOnPress = true)
+                            .animateContentSize(
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMedium,
+                                )
+                            )
+                            .minimumInteractiveComponentSize()
+                            .testTag(tab.testTag),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(
+                                horizontal = if (selected) 15.dp else 13.dp,
                             ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                    modifier = Modifier.testTag(tab.testTag),
-                )
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Icon(
+                                imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
+                                contentDescription = tab.label,
+                                tint = contentColor,
+                                modifier = Modifier.size(21.dp),
+                            )
+                            if (selected) {
+                                Text(
+                                    text = tab.label,
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                    ),
+                                    color = contentColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    }
+                }
             }
+        }
+
+        FloatingActionButton(
+            onClick = onAddClick,
+            shape = CircleShape,
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
+            modifier = Modifier
+                .size(56.dp)
+                .pressBounce(pressScale = 0.88f, hapticOnPress = true)
+                .testTag("home_fab_log_expense"),
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Add,
+                contentDescription = "Add transaction",
+                modifier = Modifier.size(26.dp),
+            )
         }
     }
 }
@@ -254,7 +323,9 @@ fun SpendlySideNavigationRail(
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                     shape = RoundedCornerShape(14.dp),
                     elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 2.dp),
-                    modifier = Modifier.testTag("rail_add_button"),
+                    modifier = Modifier
+                        .pressBounce(pressScale = 0.90f, hapticOnPress = true)
+                        .testTag("rail_add_button"),
                 ) {
                     Icon(Icons.Rounded.Add, contentDescription = "Add transaction")
                 }
@@ -460,30 +531,12 @@ fun TransactionLedgerRow(
         }
     }
 
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val rowScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.985f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMedium,
-        ),
-        label = "txRowScale",
-    )
-
     if (grouped) {
         Box(
             modifier = modifier
                 .fillMaxWidth()
-                .graphicsLayer {
-                    scaleX = rowScale
-                    scaleY = rowScale
-                }
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onClick,
-                )
+                .pressBounce(pressScale = 0.975f, hapticOnPress = true)
+                .clickable(onClick = onClick)
                 .minimumInteractiveComponentSize()
                 .testTag("tx_row_${transaction.id}"),
         ) {
@@ -492,13 +545,9 @@ fun TransactionLedgerRow(
     } else {
         Surface(
             onClick = onClick,
-            interactionSource = interactionSource,
             modifier = modifier
                 .fillMaxWidth()
-                .graphicsLayer {
-                    scaleX = rowScale
-                    scaleY = rowScale
-                }
+                .pressBounce(pressScale = 0.975f, hapticOnPress = true)
                 .minimumInteractiveComponentSize()
                 .testTag("tx_row_${transaction.id}"),
             shape = RoundedCornerShape(SpendlyTokens.RowRadius),
@@ -879,6 +928,7 @@ fun EmptyLedgerState(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
+                    .pressBounce(pressScale = 0.95f, hapticOnPress = true)
                     .testTag("empty_state_primary_cta"),
                 shape = RoundedCornerShape(12.dp),
             ) {
@@ -889,7 +939,8 @@ fun EmptyLedgerState(
                     onClick = onSecondaryActionClick,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
+                        .height(48.dp)
+                        .pressBounce(pressScale = 0.95f, hapticOnPress = true),
                     shape = RoundedCornerShape(12.dp),
                 ) {
                     Text(secondaryActionLabel)
@@ -942,7 +993,10 @@ fun SearchableCurrencySheet(
                     text = "Select Currency",
                     style = MaterialTheme.typography.headlineSmall,
                 )
-                IconButton(onClick = onDismiss) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.pressBounce(pressScale = 0.88f, hapticOnPress = true),
+                ) {
                     Icon(Icons.Rounded.Close, contentDescription = "Close currency picker")
                 }
             }
@@ -977,6 +1031,7 @@ fun SearchableCurrencySheet(
                         onClick = { pendingSelected = spec },
                         modifier = Modifier
                             .fillMaxWidth()
+                            .pressBounce(pressScale = 0.97f, hapticOnPress = true)
                             .testTag("currency_option_${spec.code}"),
                         shape = RoundedCornerShape(12.dp),
                         color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
@@ -1039,6 +1094,7 @@ fun SearchableCurrencySheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
+                    .pressBounce(pressScale = 0.95f, hapticOnPress = true)
                     .testTag("confirm_currency_button"),
                 shape = RoundedCornerShape(12.dp),
             ) {
@@ -1069,6 +1125,7 @@ fun MonthPickerSheet(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
+                            .pressBounce(pressScale = 0.96f, hapticOnPress = true)
                             .testTag("month_option_${period.year}_${period.month}"),
                         shape = RoundedCornerShape(12.dp),
                         color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
@@ -1092,7 +1149,10 @@ fun MonthPickerSheet(
             }
         },
         confirmButton = {
-            OutlinedButton(onClick = onDismiss) {
+            OutlinedButton(
+                onClick = onDismiss,
+                modifier = Modifier.pressBounce(pressScale = 0.93f, hapticOnPress = true),
+            ) {
                 Text("Close")
             }
         },

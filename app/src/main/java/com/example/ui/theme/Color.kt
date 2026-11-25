@@ -4,36 +4,36 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// Light Palette — Nordic Paper & Deep Spruce (Private-Wealth Precision)
-val LightBackground = Color(0xFFF6F5F1)
+// Light Palette — Airy Nordic Paper & Deep Spruce (Default Light Mode)
+val LightBackground = Color(0xFFF6F6F2)
 val LightSurface = Color(0xFFFFFFFF)
-val LightSurfaceLow = Color(0xFFEFEEE9)
-val LightSurfaceContainer = Color(0xFFE6E5DF)
-val LightSurfaceHigh = Color(0xFFDDDCD5)
+val LightSurfaceLow = Color(0xFFF1F0EA)
+val LightSurfaceContainer = Color(0xFFE8E7E0)
+val LightSurfaceHigh = Color(0xFFDFDED6)
 
-val LightPrimary = Color(0xFF0C4F42)
+val LightPrimary = Color(0xFF0C5446)
 val LightOnPrimary = Color(0xFFFFFFFF)
-val LightPrimaryContainer = Color(0xFFD9ECE6)
+val LightPrimaryContainer = Color(0xFFD9EEE6)
 val LightOnPrimaryContainer = Color(0xFF07332A)
 
-val LightSecondary = Color(0xFF234258)
+val LightSecondary = Color(0xFF21435A)
 val LightOnSecondary = Color(0xFFFFFFFF)
-val LightSecondaryContainer = Color(0xFFDCE6EE)
+val LightSecondaryContainer = Color(0xFFDDE8F1)
 val LightOnSecondaryContainer = Color(0xFF132736)
 
-val LightTertiary = Color(0xFF8C6B32)
+val LightTertiary = Color(0xFF916E32)
 val LightOnTertiary = Color(0xFFFFFFFF)
-val LightTertiaryContainer = Color(0xFFF5EBDC)
+val LightTertiaryContainer = Color(0xFFF6ECDD)
 val LightOnTertiaryContainer = Color(0xFF3D2B0D)
 
-val LightOnSurface = Color(0xFF111413)
-val LightOnSurfaceVariant = Color(0xFF525A57)
+val LightOnSurface = Color(0xFF101413)
+val LightOnSurfaceVariant = Color(0xFF565E5B)
 val LightOutline = Color(0xFF818A86)
-val LightOutlineVariant = Color(0xFFE2E1DA)
+val LightOutlineVariant = Color(0xFFE4E3DC)
 
-val LightError = Color(0xFFB42334)
+val LightError = Color(0xFFC62839)
 val LightOnError = Color(0xFFFFFFFF)
-val LightErrorContainer = Color(0xFFFCE6E9)
+val LightErrorContainer = Color(0xFFFDE8EA)
 val LightOnErrorContainer = Color(0xFF6B101B)
 
 // Dark Palette — Composed Obsidian Slate & Sage Mint

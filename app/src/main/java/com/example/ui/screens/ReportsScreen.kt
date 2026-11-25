@@ -64,6 +64,7 @@ import com.example.ui.components.EmptyLedgerState
 import com.example.ui.components.LedgerGroupCard
 import com.example.ui.components.MonthlyBarPoint
 import com.example.ui.components.MonthlyCashFlowBarChart
+import com.example.ui.components.pressBounce
 import com.example.ui.theme.MoneyRowStyle
 import com.example.ui.theme.SpendlyTheme
 import com.example.util.DateFormatters
@@ -228,7 +229,10 @@ fun ReportsScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("reports_back")) {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.pressBounce().testTag("reports_back"),
+                    ) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -252,6 +256,7 @@ fun ReportsScreen(
                         modifier = Modifier
                             .padding(end = 12.dp)
                             .minimumInteractiveComponentSize()
+                            .pressBounce(pressScale = 0.93f)
                             .testTag("reports_export_button"),
                         shape = RoundedCornerShape(999.dp),
                         color = MaterialTheme.colorScheme.surface,
@@ -308,7 +313,7 @@ fun ReportsScreen(
                                 label = { Text(rp.label) },
                                 shape = RoundedCornerShape(999.dp),
                                 colors = chipColors,
-                                modifier = Modifier.testTag("report_period_${rp.name.lowercase()}"),
+                                modifier = Modifier.pressBounce(pressScale = 0.94f).testTag("report_period_${rp.name.lowercase()}"),
                             )
                         }
                     }
@@ -526,7 +531,10 @@ fun ReportsScreen(
             title = { Text("Export Created") },
             text = { Text(msg) },
             confirmButton = {
-                Button(onClick = { exportedFileSummary = null }) {
+                Button(
+                    onClick = { exportedFileSummary = null },
+                    modifier = Modifier.pressBounce(pressScale = 0.94f),
+                ) {
                     Text("Done")
                 }
             },

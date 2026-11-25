@@ -39,6 +39,7 @@ import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.example.R
+import com.example.ui.components.pressBounce
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -203,6 +204,7 @@ fun GoogleSignInButton(
         modifier = modifier
             .fillMaxWidth()
             .height(54.dp)
+            .pressBounce(enabled = !isLoading, pressScale = 0.96f)
             .testTag("google_sign_in_button"),
         shape = RoundedCornerShape(14.dp),
         border = BorderStroke(1.dp, semantic.heroGold.copy(alpha = 0.35f)),

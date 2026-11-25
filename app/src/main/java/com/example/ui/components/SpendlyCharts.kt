@@ -62,6 +62,7 @@ data class CategoryChartSlice(
     val label: String,
     val amountMinor: Long,
     val color: Color,
+    val iconKey: String = "",
 )
 
 data class MonthlyBarPoint(
@@ -185,6 +186,7 @@ fun CategoryPieChart(
             val pct = ((highlightedSlice.amountMinor.toFloat() / total.toFloat()) * 100f).toInt()
             Surface(
                 onClick = { onSliceInspect(highlightedSlice) },
+                modifier = Modifier.pressBounce(pressScale = 0.96f, hapticOnPress = true),
                 shape = RoundedCornerShape(SpendlyTokens.RowRadius),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 border = BorderStroke(1.dp, semantic.surfaceBorder),
@@ -248,6 +250,7 @@ fun CategoryPieChart(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent)
+                            .pressBounce(pressScale = 0.97f, hapticOnPress = true)
                             .clickable {
                                 highlightedId = slice.categoryId
                                 onSliceInspect(slice)
@@ -435,6 +438,7 @@ fun CategoryDonutChart(
                             .background(
                                 if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent
                             )
+                            .pressBounce(pressScale = 0.97f, hapticOnPress = true)
                             .clickable {
                                 highlightedId = if (isSelected) null else slice.categoryId
                                 onSliceClick(slice)

@@ -251,6 +251,7 @@ fun SpendlyApp(viewModel: SpendlyViewModel) {
                             SpendlyBottomNavigationBar(
                                 currentRoute = currentRoute,
                                 onSelectTab = ::navigateTopTab,
+                                onAddClick = { openAddTransaction(TransactionType.EXPENSE) },
                             )
                         }
                     },

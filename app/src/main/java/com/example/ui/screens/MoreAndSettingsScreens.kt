@@ -87,6 +87,7 @@ import com.example.notifications.SpendlyNotificationHelper
 import com.example.ui.components.LedgerGroupCard
 import com.example.ui.components.SearchableCurrencySheet
 import com.example.ui.components.categoryIconFor
+import com.example.ui.components.pressBounce
 import com.example.ui.components.touchSpringCard
 import com.example.ui.theme.SpendlyTheme
 import com.example.ui.theme.SpendlyTokens
@@ -424,6 +425,7 @@ fun MoreScreen(
                         showSignOutConfirm = false
                         onSignOut()
                     },
+                    modifier = Modifier.pressBounce(pressScale = 0.94f),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     shape = RoundedCornerShape(12.dp),
                 ) {
@@ -433,6 +435,7 @@ fun MoreScreen(
             dismissButton = {
                 OutlinedButton(
                     onClick = { showSignOutConfirm = false },
+                    modifier = Modifier.pressBounce(pressScale = 0.94f),
                     shape = RoundedCornerShape(12.dp),
                 ) {
                     Text("Cancel")
@@ -505,14 +508,14 @@ fun CategoriesScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = onNavigateBack, modifier = Modifier.pressBounce()) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
                     Button(
                         onClick = { showAddDialog = true },
-                        modifier = Modifier.padding(end = 12.dp),
+                        modifier = Modifier.padding(end = 12.dp).pressBounce(pressScale = 0.94f),
                         shape = RoundedCornerShape(999.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     ) {
@@ -613,7 +616,8 @@ fun CategoriesScreen(
                                 onClick = { newType = t },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(42.dp),
+                                    .height(42.dp)
+                                    .pressBounce(pressScale = 0.94f),
                                 shape = RoundedCornerShape(10.dp),
                                 color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerLow,
                             ) {
@@ -719,7 +723,7 @@ fun ImportExportScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = onNavigateBack, modifier = Modifier.pressBounce()) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -769,6 +773,7 @@ fun ImportExportScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(50.dp)
+                                        .pressBounce(enabled = uiState.activeAccounts.isNotEmpty() && rawCsvText.isNotBlank(), pressScale = 0.96f)
                                         .testTag("csv_preview_button"),
                                     shape = RoundedCornerShape(12.dp),
                                 ) {
@@ -808,7 +813,8 @@ fun ImportExportScreen(
                                         },
                                         modifier = Modifier
                                             .weight(1f)
-                                            .height(48.dp),
+                                            .height(48.dp)
+                                            .pressBounce(pressScale = 0.95f),
                                         shape = RoundedCornerShape(12.dp),
                                         border = BorderStroke(1.dp, semantic.surfaceBorder),
                                     ) {
@@ -824,7 +830,8 @@ fun ImportExportScreen(
                                         },
                                         modifier = Modifier
                                             .weight(1f)
-                                            .height(48.dp),
+                                            .height(48.dp)
+                                            .pressBounce(pressScale = 0.95f),
                                         shape = RoundedCornerShape(12.dp),
                                         border = BorderStroke(1.dp, semantic.surfaceBorder),
                                     ) {
@@ -835,7 +842,8 @@ fun ImportExportScreen(
                                     onClick = { showRestoreConfirm = true },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(48.dp),
+                                        .height(48.dp)
+                                        .pressBounce(pressScale = 0.96f),
                                     shape = RoundedCornerShape(12.dp),
                                     border = BorderStroke(1.dp, semantic.surfaceBorder),
                                 ) {
@@ -970,7 +978,8 @@ fun ImportExportScreen(
                                 onClick = { wizardStep = 0 },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(50.dp),
+                                    .height(50.dp)
+                                    .pressBounce(pressScale = 0.95f),
                                 shape = RoundedCornerShape(12.dp),
                                 border = BorderStroke(1.dp, semantic.surfaceBorder),
                             ) {
@@ -986,6 +995,7 @@ fun ImportExportScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(50.dp)
+                                    .pressBounce(enabled = validCount > 0, pressScale = 0.95f)
                                     .testTag("csv_confirm_import_button"),
                                 shape = RoundedCornerShape(12.dp),
                             ) {
@@ -1100,11 +1110,11 @@ fun CurrencySettingsScreen(
     val base = CurrencyCatalog.findByCode(uiState.defaultCurrencyCode)
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = Color.Transparent,
                 ),
                 title = {
                     Text(
@@ -1115,7 +1125,7 @@ fun CurrencySettingsScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = onNavigateBack, modifier = Modifier.pressBounce()) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -1140,6 +1150,7 @@ fun CurrencySettingsScreen(
                         onClick = { showPicker = true },
                         modifier = Modifier
                             .fillMaxWidth()
+                            .pressBounce(pressScale = 0.97f)
                             .testTag("change_default_currency_card"),
                         shape = RoundedCornerShape(SpendlyTokens.CardRadius),
                         color = MaterialTheme.colorScheme.primaryContainer,
@@ -1283,11 +1294,11 @@ fun SettingsDetailScreen(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = Color.Transparent,
                 ),
                 title = {
                     Text(
@@ -1298,7 +1309,10 @@ fun SettingsDetailScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("settings_detail_back")) {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.pressBounce().testTag("settings_detail_back"),
+                    ) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -1340,6 +1354,7 @@ fun SettingsDetailScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .minimumInteractiveComponentSize()
+                                            .pressBounce(pressScale = 0.97f)
                                             .testTag("theme_option_${mode.name.lowercase()}"),
                                     ) {
                                         Row(
@@ -1378,7 +1393,8 @@ fun SettingsDetailScreen(
                                         color = MaterialTheme.colorScheme.surface,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .minimumInteractiveComponentSize(),
+                                            .minimumInteractiveComponentSize()
+                                            .pressBounce(pressScale = 0.97f),
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(16.dp),
@@ -1494,7 +1510,8 @@ fun SettingsDetailScreen(
                                         },
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(50.dp),
+                                            .height(50.dp)
+                                            .pressBounce(pressScale = 0.96f),
                                         shape = RoundedCornerShape(12.dp),
                                     ) {
                                         Text("Save Profile")
@@ -1508,6 +1525,7 @@ fun SettingsDetailScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(50.dp)
+                                    .pressBounce(pressScale = 0.96f)
                                     .testTag("profile_sign_out_button"),
                                 shape = RoundedCornerShape(12.dp),
                                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
@@ -1610,6 +1628,7 @@ private fun MoreMenuRow(
         modifier = Modifier
             .fillMaxWidth()
             .minimumInteractiveComponentSize()
+            .pressBounce(pressScale = 0.97f)
             .testTag(testTag),
         color = MaterialTheme.colorScheme.surface,
     ) {

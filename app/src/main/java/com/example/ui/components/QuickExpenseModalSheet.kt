@@ -130,7 +130,10 @@ fun QuickExpenseModalSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(onClick = onDismiss) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.pressBounce(),
+                ) {
                     Icon(Icons.Rounded.Close, contentDescription = "Close")
                 }
             }
@@ -204,6 +207,7 @@ fun QuickExpenseModalSheet(
                                     }
                                     amountError = null
                                 },
+                                modifier = Modifier.pressBounce(pressScale = 0.92f),
                                 shape = RoundedCornerShape(999.dp),
                                 color = MaterialTheme.colorScheme.surface,
                                 border = BorderStroke(1.dp, semantic.surfaceBorder),
@@ -219,6 +223,7 @@ fun QuickExpenseModalSheet(
                         if (amountText.isNotEmpty()) {
                             Surface(
                                 onClick = { amountText = "" },
+                                modifier = Modifier.pressBounce(pressScale = 0.92f),
                                 shape = RoundedCornerShape(999.dp),
                                 color = MaterialTheme.colorScheme.surface,
                                 border = BorderStroke(1.dp, semantic.surfaceBorder),
@@ -259,7 +264,7 @@ fun QuickExpenseModalSheet(
                             shape = RoundedCornerShape(999.dp),
                             color = containerColor,
                             border = if (selected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
-                            modifier = Modifier.testTag("quick_expense_cat_${cat.id}"),
+                            modifier = Modifier.pressBounce(pressScale = 0.94f).testTag("quick_expense_cat_${cat.id}"),
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -299,6 +304,7 @@ fun QuickExpenseModalSheet(
                     onClick = { showDatePicker = true },
                     modifier = Modifier
                         .weight(1f)
+                        .pressBounce(pressScale = 0.96f)
                         .testTag("quick_expense_date_button"),
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -333,6 +339,7 @@ fun QuickExpenseModalSheet(
                         onClick = { if (uiState.activeAccounts.isNotEmpty()) showAccountMenu = true },
                         modifier = Modifier
                             .fillMaxWidth()
+                            .pressBounce(pressScale = 0.96f)
                             .testTag("quick_expense_account_button"),
                         shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -413,6 +420,7 @@ fun QuickExpenseModalSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
+                    .pressBounce(pressScale = 0.96f)
                     .testTag("quick_expense_save_button"),
                 shape = RoundedCornerShape(14.dp),
             ) {

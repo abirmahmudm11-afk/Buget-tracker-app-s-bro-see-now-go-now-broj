@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import com.example.ui.components.LedgerGroupCard
 import com.example.ui.components.SearchableCurrencySheet
 import com.example.ui.components.SpendlyBrandLogo
+import com.example.ui.components.pressBounce
 import com.example.ui.theme.SpendlyTheme
 import com.example.ui.theme.SpendlyTokens
 import com.example.util.CurrencyCatalog
@@ -119,6 +120,7 @@ fun OnboardingScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(54.dp)
+                                    .pressBounce(pressScale = 0.96f)
                                     .testTag("onboarding_get_started"),
                                 shape = RoundedCornerShape(14.dp),
                                 colors = ButtonDefaults.buttonColors(
@@ -192,6 +194,7 @@ fun OnboardingScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .minimumInteractiveComponentSize()
+                                .pressBounce(pressScale = 0.97f)
                                 .testTag("onboarding_currency_selector"),
                             color = Color.Transparent,
                         ) {
@@ -252,6 +255,7 @@ fun OnboardingScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .minimumInteractiveComponentSize()
+                                .pressBounce(pressScale = 0.97f)
                                 .testTag("onboarding_language_selector"),
                             color = Color.Transparent,
                         ) {
@@ -369,6 +373,7 @@ fun OnboardingScreen(
                                 selectedLanguage = lang
                                 showLanguageDialog = false
                             },
+                            modifier = Modifier.pressBounce(pressScale = 0.97f),
                             shape = RoundedCornerShape(SpendlyTokens.RowRadius),
                             color = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
                             border = if (active) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,

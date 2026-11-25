@@ -93,6 +93,7 @@ import com.example.ui.components.LedgerGroupCard
 import com.example.ui.components.SearchableCurrencySheet
 import com.example.ui.components.TransactionLedgerRow
 import com.example.ui.components.WalletDeckStage
+import com.example.ui.components.pressBounce
 import com.example.ui.components.touchSpringCard
 import com.example.ui.theme.MoneyHeroStyle
 import com.example.ui.theme.SpendlyTheme
@@ -152,7 +153,10 @@ fun AccountsScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("accounts_back")) {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.pressBounce().testTag("accounts_back"),
+                    ) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -164,6 +168,7 @@ fun AccountsScreen(
                         },
                         modifier = Modifier
                             .padding(end = 12.dp)
+                            .pressBounce(pressScale = 0.94f)
                             .testTag("add_account_button"),
                         shape = RoundedCornerShape(12.dp),
                     ) {
@@ -279,7 +284,7 @@ fun AccountsScreen(
                             label = { Text("Active (${uiState.activeAccounts.size})") },
                             shape = RoundedCornerShape(999.dp),
                             colors = chipColors,
-                            modifier = Modifier.testTag("accounts_tab_active"),
+                            modifier = Modifier.pressBounce(pressScale = 0.94f).testTag("accounts_tab_active"),
                         )
                         FilterChip(
                             selected = showArchived,
@@ -287,7 +292,7 @@ fun AccountsScreen(
                             label = { Text("Archived (${uiState.archivedAccounts.size})") },
                             shape = RoundedCornerShape(999.dp),
                             colors = chipColors,
-                            modifier = Modifier.testTag("accounts_tab_archived"),
+                            modifier = Modifier.pressBounce(pressScale = 0.94f).testTag("accounts_tab_archived"),
                         )
                     }
                 }
@@ -412,17 +417,23 @@ fun AccountDetailScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("account_detail_back")) {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.pressBounce().testTag("account_detail_back"),
+                    ) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showEditSheet = true }, modifier = Modifier.testTag("account_detail_edit")) {
+                    IconButton(
+                        onClick = { showEditSheet = true },
+                        modifier = Modifier.pressBounce().testTag("account_detail_edit"),
+                    ) {
                         Icon(Icons.Rounded.Edit, contentDescription = "Edit account")
                     }
                     IconButton(
                         onClick = { onToggleArchive(account.id) },
-                        modifier = Modifier.testTag("account_detail_archive"),
+                        modifier = Modifier.pressBounce().testTag("account_detail_archive"),
                     ) {
                         Icon(
                             imageVector = if (account.isArchived) Icons.Rounded.Unarchive else Icons.Rounded.Archive,
@@ -431,7 +442,7 @@ fun AccountDetailScreen(
                     }
                     IconButton(
                         onClick = { showDeleteConfirm = true },
-                        modifier = Modifier.testTag("account_detail_delete"),
+                        modifier = Modifier.pressBounce().testTag("account_detail_delete"),
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.DeleteOutline,
@@ -480,6 +491,7 @@ fun AccountDetailScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(50.dp)
+                                .pressBounce(enabled = !account.isArchived, pressScale = 0.95f)
                                 .testTag("account_detail_add_tx"),
                             shape = RoundedCornerShape(12.dp),
                             enabled = !account.isArchived,
@@ -490,7 +502,7 @@ fun AccountDetailScreen(
                         }
                         OutlinedButton(
                             onClick = { showEditSheet = true },
-                            modifier = Modifier.height(50.dp),
+                            modifier = Modifier.height(50.dp).pressBounce(pressScale = 0.95f),
                             shape = RoundedCornerShape(12.dp),
                         ) {
                             Icon(Icons.Rounded.Image, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -606,6 +618,7 @@ fun AccountDetailScreen(
                         onDeleteAccount(account.id)
                         onNavigateBack()
                     },
+                    modifier = Modifier.pressBounce(pressScale = 0.94f),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 ) {
                     Text("Delete Permanently")
@@ -617,6 +630,7 @@ fun AccountDetailScreen(
                         showDeleteConfirm = false
                         onToggleArchive(account.id)
                     },
+                    modifier = Modifier.pressBounce(pressScale = 0.94f),
                 ) {
                     Text("Archive Instead")
                 }
@@ -758,7 +772,10 @@ fun AccountFormSheet(
                     text = if (editingAccount != null) "Edit Card & Account" else "Add Card or Account",
                     style = MaterialTheme.typography.headlineSmall,
                 )
-                IconButton(onClick = dismissWithCleanup) {
+                IconButton(
+                    onClick = dismissWithCleanup,
+                    modifier = Modifier.pressBounce(),
+                ) {
                     Icon(Icons.Rounded.Close, contentDescription = "Close")
                 }
             }
@@ -785,7 +802,7 @@ fun AccountFormSheet(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                         )
                     },
-                    modifier = Modifier.weight(1f).testTag("pick_card_photo_button"),
+                    modifier = Modifier.weight(1f).pressBounce(pressScale = 0.95f).testTag("pick_card_photo_button"),
                     shape = RoundedCornerShape(12.dp),
                 ) {
                     Icon(Icons.Rounded.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -798,7 +815,7 @@ fun AccountFormSheet(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                         )
                     },
-                    modifier = Modifier.weight(1f).testTag("pick_card_logo_button"),
+                    modifier = Modifier.weight(1f).pressBounce(pressScale = 0.95f).testTag("pick_card_logo_button"),
                     shape = RoundedCornerShape(12.dp),
                 ) {
                     Icon(Icons.Rounded.Image, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -815,6 +832,7 @@ fun AccountFormSheet(
                             onClick = { CardArtStore.clearCardPhoto(context, artKey) },
                             label = { Text("Remove Photo") },
                             trailingIcon = { Icon(Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                            modifier = Modifier.pressBounce(pressScale = 0.94f),
                         )
                     }
                     if (artPrefs.logoPath != null) {
@@ -823,6 +841,7 @@ fun AccountFormSheet(
                             onClick = { CardArtStore.clearCardLogo(context, artKey) },
                             label = { Text("Remove Logo") },
                             trailingIcon = { Icon(Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                            modifier = Modifier.pressBounce(pressScale = 0.94f),
                         )
                     }
                 }
@@ -846,6 +865,7 @@ fun AccountFormSheet(
                     Box(
                         modifier = Modifier
                             .size(38.dp)
+                            .pressBounce(pressScale = 0.88f)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                             .border(
@@ -870,6 +890,7 @@ fun AccountFormSheet(
                         Box(
                             modifier = Modifier
                                 .size(38.dp)
+                                .pressBounce(pressScale = 0.88f)
                                 .clip(CircleShape)
                                 .background(preset.swatchColor)
                                 .border(
@@ -987,6 +1008,7 @@ fun AccountFormSheet(
                             onClick = { cardNetwork = net },
                             label = { Text(net) },
                             shape = RoundedCornerShape(999.dp),
+                            modifier = Modifier.pressBounce(pressScale = 0.94f),
                         )
                     }
                 }
@@ -1035,6 +1057,7 @@ fun AccountFormSheet(
                         .weight(0.42f)
                         .height(56.dp)
                         .padding(top = 6.dp)
+                        .pressBounce(pressScale = 0.95f)
                         .testTag("account_currency_button"),
                     shape = RoundedCornerShape(12.dp),
                 ) {
@@ -1108,6 +1131,7 @@ fun AccountFormSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
+                    .pressBounce(pressScale = 0.96f)
                     .testTag("save_account_button"),
                 shape = RoundedCornerShape(12.dp),
             ) {

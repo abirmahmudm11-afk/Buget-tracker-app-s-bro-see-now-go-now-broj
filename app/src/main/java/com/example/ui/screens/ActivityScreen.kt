@@ -65,6 +65,7 @@ import com.example.model.TransactionType
 import com.example.ui.components.EmptyLedgerState
 import com.example.ui.components.LedgerGroupCard
 import com.example.ui.components.groupedTransactionItems
+import com.example.ui.components.pressBounce
 import com.example.ui.theme.MoneyHeroStyle
 import com.example.ui.theme.MoneyRowStyle
 import com.example.ui.theme.SpendlyTheme
@@ -186,7 +187,7 @@ fun ActivityScreen(
                         if (hasActiveFilter) {
                             TextButton(
                                 onClick = onClearFilters,
-                                modifier = Modifier.testTag("activity_clear_filters"),
+                                modifier = Modifier.pressBounce(pressScale = 0.94f).testTag("activity_clear_filters"),
                             ) {
                                 Text("Reset all")
                             }
@@ -298,7 +299,7 @@ fun ActivityScreen(
                                 leadingIcon = { Icon(Icons.Rounded.FilterList, contentDescription = null, modifier = Modifier.size(16.dp)) },
                                 shape = RoundedCornerShape(999.dp),
                                 colors = chipColors,
-                                modifier = Modifier.testTag("filter_month_chip"),
+                                modifier = Modifier.pressBounce(pressScale = 0.94f).testTag("filter_month_chip"),
                             )
                             DropdownMenu(expanded = showMonthMenu, onDismissRequest = { showMonthMenu = false }) {
                                 DropdownMenuItem(
@@ -336,7 +337,7 @@ fun ActivityScreen(
                                 label = { Text(type.label) },
                                 shape = RoundedCornerShape(999.dp),
                                 colors = chipColors,
-                                modifier = Modifier.testTag("filter_type_${type.name.lowercase()}"),
+                                modifier = Modifier.pressBounce(pressScale = 0.94f).testTag("filter_type_${type.name.lowercase()}"),
                             )
                         }
 
@@ -348,7 +349,7 @@ fun ActivityScreen(
                                 label = { Text(selectedAcc?.name ?: "Account") },
                                 shape = RoundedCornerShape(999.dp),
                                 colors = chipColors,
-                                modifier = Modifier.testTag("filter_account_chip"),
+                                modifier = Modifier.pressBounce(pressScale = 0.94f).testTag("filter_account_chip"),
                             )
                             DropdownMenu(expanded = showAccountMenu, onDismissRequest = { showAccountMenu = false }) {
                                 DropdownMenuItem(
@@ -378,7 +379,7 @@ fun ActivityScreen(
                                 label = { Text(selectedCat?.name ?: "Category") },
                                 shape = RoundedCornerShape(999.dp),
                                 colors = chipColors,
-                                modifier = Modifier.testTag("filter_category_chip"),
+                                modifier = Modifier.pressBounce(pressScale = 0.94f).testTag("filter_category_chip"),
                             )
                             DropdownMenu(expanded = showCategoryMenu, onDismissRequest = { showCategoryMenu = false }) {
                                 DropdownMenuItem(
@@ -408,7 +409,7 @@ fun ActivityScreen(
                                 leadingIcon = { Icon(Icons.Rounded.SwapVert, contentDescription = null, modifier = Modifier.size(16.dp)) },
                                 shape = RoundedCornerShape(999.dp),
                                 colors = chipColors,
-                                modifier = Modifier.testTag("filter_sort_chip"),
+                                modifier = Modifier.pressBounce(pressScale = 0.94f).testTag("filter_sort_chip"),
                             )
                             DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
                                 SortOption.entries.forEach { opt ->
@@ -463,6 +464,7 @@ fun ActivityScreen(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 16.dp, bottom = 14.dp)
+                .pressBounce(pressScale = 0.88f)
                 .testTag("nav_add_button"),
         ) {
             Icon(Icons.Rounded.Add, contentDescription = "Add transaction")
@@ -501,13 +503,16 @@ fun ActivityScreen(
                         txPendingDelete = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    modifier = Modifier.testTag("confirm_delete_tx_button"),
+                    modifier = Modifier.pressBounce(pressScale = 0.94f).testTag("confirm_delete_tx_button"),
                 ) {
                     Text("Delete")
                 }
             },
             dismissButton = {
-                OutlinedButton(onClick = { txPendingDelete = null }) {
+                OutlinedButton(
+                    onClick = { txPendingDelete = null },
+                    modifier = Modifier.pressBounce(pressScale = 0.94f),
+                ) {
                     Text("Cancel")
                 }
             },
@@ -637,6 +642,7 @@ fun TransactionDetailSheet(
                     modifier = Modifier
                         .weight(1f)
                         .height(50.dp)
+                        .pressBounce(pressScale = 0.95f)
                         .testTag("tx_detail_delete_button"),
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
@@ -652,6 +658,7 @@ fun TransactionDetailSheet(
                     modifier = Modifier
                         .weight(1f)
                         .height(50.dp)
+                        .pressBounce(pressScale = 0.95f)
                         .testTag("tx_detail_edit_button"),
                     shape = RoundedCornerShape(12.dp),
                 ) {

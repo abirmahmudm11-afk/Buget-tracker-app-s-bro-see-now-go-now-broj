@@ -78,6 +78,7 @@ import com.example.ui.components.SearchableCurrencySheet
 import com.example.ui.components.accountAccentPair
 import com.example.ui.components.accountTypeIcon
 import com.example.ui.components.categoryIconFor
+import com.example.ui.components.pressBounce
 import com.example.ui.theme.MoneyInputStyle
 import com.example.ui.theme.SpendlyTheme
 import com.example.ui.theme.SpendlyTokens
@@ -196,11 +197,11 @@ fun AddTransactionScreen(
     val onActiveAccent = if (semantic.isDark) Color(0xFF091411) else Color.White
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = Color.Transparent,
                 ),
                 title = {
                     Text(
@@ -209,7 +210,10 @@ fun AddTransactionScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("add_tx_back")) {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.pressBounce().testTag("add_tx_back"),
+                    ) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -282,6 +286,7 @@ fun AddTransactionScreen(
                                     .widthIn(max = 600.dp)
                                     .fillMaxWidth()
                                     .height(52.dp)
+                                    .pressBounce(enabled = !isSaving, pressScale = 0.96f)
                                     .testTag("save_transaction_button"),
                                 shape = RoundedCornerShape(12.dp),
                             ) {
@@ -336,6 +341,7 @@ fun AddTransactionScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp)
+                            .pressBounce(pressScale = 0.96f)
                             .testTag("add_tx_create_account_cta"),
                         shape = RoundedCornerShape(12.dp),
                     ) {
@@ -394,6 +400,7 @@ fun AddTransactionScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(42.dp)
+                                    .pressBounce(pressScale = 0.94f)
                                     .testTag("tx_type_${type.name.lowercase()}"),
                                 shape = RoundedCornerShape(9.dp),
                                 color = if (selected) pillColor else Color.Transparent,
@@ -439,6 +446,7 @@ fun AddTransactionScreen(
                                 onClick = { showCurrencySheet = true },
                                 modifier = Modifier
                                     .minimumInteractiveComponentSize()
+                                    .pressBounce(pressScale = 0.93f)
                                     .testTag("tx_currency_chip"),
                                 shape = RoundedCornerShape(999.dp),
                                 color = activeTintBg,
@@ -507,7 +515,7 @@ fun AddTransactionScreen(
                                         }
                                         amountError = null
                                     },
-                                    modifier = Modifier.minimumInteractiveComponentSize(),
+                                    modifier = Modifier.minimumInteractiveComponentSize().pressBounce(pressScale = 0.92f),
                                     shape = RoundedCornerShape(999.dp),
                                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                                     border = BorderStroke(1.dp, semantic.surfaceBorder),
@@ -523,7 +531,7 @@ fun AddTransactionScreen(
                             if (amountText.isNotEmpty()) {
                                 Surface(
                                     onClick = { amountText = "" },
-                                    modifier = Modifier.minimumInteractiveComponentSize(),
+                                    modifier = Modifier.minimumInteractiveComponentSize().pressBounce(pressScale = 0.92f),
                                     shape = RoundedCornerShape(999.dp),
                                     color = MaterialTheme.colorScheme.surfaceContainer,
                                 ) {
@@ -565,6 +573,7 @@ fun AddTransactionScreen(
                                 },
                                 modifier = Modifier
                                     .minimumInteractiveComponentSize()
+                                    .pressBounce(pressScale = 0.94f)
                                     .testTag("quick_cat_${cat.id}"),
                                 shape = RoundedCornerShape(999.dp),
                                 color = if (isSelected) catBg else MaterialTheme.colorScheme.surface,
@@ -773,6 +782,7 @@ fun AddTransactionScreen(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .pressBounce(pressScale = 0.97f)
                                 .testTag("pick_cat_${cat.id}"),
                             shape = RoundedCornerShape(SpendlyTokens.RowRadius),
                             color = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
@@ -845,6 +855,7 @@ fun AddTransactionScreen(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .pressBounce(pressScale = 0.97f)
                                 .testTag("pick_acc_${acc.id}"),
                             shape = RoundedCornerShape(SpendlyTokens.RowRadius),
                             color = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
@@ -939,6 +950,7 @@ private fun PickerFieldRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .minimumInteractiveComponentSize()
+                .pressBounce(pressScale = 0.97f)
                 .testTag(testTag),
             color = Color.Transparent,
         ) {

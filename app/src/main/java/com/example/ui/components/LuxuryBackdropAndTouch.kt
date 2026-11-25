@@ -53,6 +53,53 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
+ * Tactile spring press-bounce modifier for buttons, chips, nav pills, and FABs.
+ * Uses PointerEventPass.Initial without consuming pointer events so standard M3 clicks/ripples
+ * continue to fire reliably while every touch animates immediately.
+ */
+fun Modifier.pressBounce(
+    enabled: Boolean = true,
+    pressScale: Float = 0.92f,
+    hapticOnPress: Boolean = true,
+): Modifier = composed {
+    if (!enabled) return@composed this
+
+    val haptic = LocalHapticFeedback.current
+    var isPressed by remember { mutableStateOf(false) }
+
+    val animScale by animateFloatAsState(
+        targetValue = if (isPressed) pressScale else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.52f,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "buttonPressBounce",
+    )
+
+    this
+        .pointerInput(enabled, hapticOnPress) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                isPressed = true
+                if (hapticOnPress) {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    if (event.changes.none { it.pressed }) {
+                        break
+                    }
+                }
+                isPressed = false
+            }
+        }
+        .graphicsLayer {
+            scaleX = animScale
+            scaleY = animScale
+        }
+}
+
+/**
  * Tactile 3D touch-animation modifier for all cards and interactive surfaces.
  * Uses PointerEventPass.Initial without consuming events so LazyColumn scrolling
  * and HorizontalPager swiping continue smoothly while every touch triggers

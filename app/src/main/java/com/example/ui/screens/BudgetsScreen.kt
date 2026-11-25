@@ -63,6 +63,7 @@ import com.example.ui.components.LedgerGroupCard
 import com.example.ui.components.MonthPickerSheet
 import com.example.ui.components.MonthSelectorChip
 import com.example.ui.components.TransactionLedgerRow
+import com.example.ui.components.pressBounce
 import com.example.ui.components.touchSpringCard
 import com.example.ui.theme.SpendlyTheme
 import com.example.ui.theme.SpendlyTokens
@@ -118,7 +119,9 @@ fun BudgetsScreen(
                     Text("Budgets", style = MaterialTheme.typography.headlineMedium)
                     OutlinedButton(
                         onClick = { showHistoryDialog = true },
-                        modifier = Modifier.testTag("budget_history_button"),
+                        modifier = Modifier
+                            .pressBounce(pressScale = 0.92f, hapticOnPress = true)
+                            .testTag("budget_history_button"),
                         shape = RoundedCornerShape(999.dp),
                         border = BorderStroke(1.dp, semantic.surfaceBorder),
                     ) {
@@ -150,7 +153,9 @@ fun BudgetsScreen(
                             defaultScope = if (overall == null) BudgetScope.OVERALL else BudgetScope.CATEGORY
                             showBudgetForm = true
                         },
-                        modifier = Modifier.testTag("add_budget_button"),
+                        modifier = Modifier
+                            .pressBounce(pressScale = 0.93f, hapticOnPress = true)
+                            .testTag("add_budget_button"),
                         shape = RoundedCornerShape(12.dp),
                     ) {
                         Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -272,6 +277,7 @@ fun BudgetsScreen(
                             defaultScope = BudgetScope.CATEGORY
                             showBudgetForm = true
                         },
+                        modifier = Modifier.pressBounce(pressScale = 0.92f, hapticOnPress = true),
                     ) {
                         Text("+ Add limit")
                     }
@@ -381,13 +387,23 @@ fun BudgetsScreen(
                             selectedSummaryForBreakdown = null
                             showBudgetForm = true
                         },
+                        modifier = Modifier.pressBounce(pressScale = 0.92f, hapticOnPress = true),
                         shape = RoundedCornerShape(999.dp),
                     ) {
                         Text("Edit limit")
                     }
                 }
 
-                BudgetProgressCard(summary = summary, hideBalances = hide, onClick = {})
+                BudgetProgressCard(
+                    summary = summary,
+                    hideBalances = hide,
+                    onClick = {
+                        editingBudget = summary.budget
+                        defaultScope = summary.budget.scope
+                        selectedSummaryForBreakdown = null
+                        showBudgetForm = true
+                    },
+                )
 
                 Text("Transactions in this category", style = MaterialTheme.typography.titleSmall)
                 if (catTx.isEmpty()) {
@@ -444,6 +460,7 @@ fun BudgetsScreen(
                                     onSelectPeriod(period)
                                     showHistoryDialog = false
                                 },
+                                modifier = Modifier.pressBounce(pressScale = 0.96f, hapticOnPress = true),
                                 shape = RoundedCornerShape(12.dp),
                                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                             ) {
@@ -470,7 +487,10 @@ fun BudgetsScreen(
                 }
             },
             confirmButton = {
-                OutlinedButton(onClick = { showHistoryDialog = false }) {
+                OutlinedButton(
+                    onClick = { showHistoryDialog = false },
+                    modifier = Modifier.pressBounce(pressScale = 0.93f, hapticOnPress = true),
+                ) {
                     Text("Close")
                 }
             },
@@ -539,7 +559,10 @@ private fun BudgetFormSheet(
                         val active = scope == s
                         Surface(
                             onClick = { scope = s },
-                            modifier = Modifier.weight(1f).height(40.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(40.dp)
+                                .pressBounce(pressScale = 0.93f, hapticOnPress = true),
                             shape = RoundedCornerShape(999.dp),
                             color = if (active) MaterialTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent,
                         ) {
@@ -622,6 +645,7 @@ private fun BudgetFormSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
+                    .pressBounce(pressScale = 0.95f, hapticOnPress = true)
                     .testTag("save_budget_button"),
                 shape = RoundedCornerShape(12.dp),
             ) {
@@ -631,7 +655,10 @@ private fun BudgetFormSheet(
             if (onDelete != null) {
                 OutlinedButton(
                     onClick = onDelete,
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .pressBounce(pressScale = 0.95f, hapticOnPress = true),
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
