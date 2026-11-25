@@ -179,6 +179,7 @@ fun GoogleSignInButton(
     val scope = rememberCoroutineScope()
     val credentialManager = remember(context) { CredentialManager.create(context) }
     var isLoading by remember { mutableStateOf(false) }
+    val semantic = com.example.ui.theme.SpendlyTheme.semantic
 
     Button(
         onClick = {
@@ -201,18 +202,19 @@ fun GoogleSignInButton(
         enabled = !isLoading,
         modifier = modifier
             .fillMaxWidth()
-            .height(52.dp)
+            .height(54.dp)
             .testTag("google_sign_in_button"),
         shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, semantic.heroGold.copy(alpha = 0.35f)),
         colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
+            containerColor = semantic.heroSurface,
+            contentColor = semantic.onHeroSurface,
         ),
     ) {
         if (isLoading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(20.dp),
-                color = MaterialTheme.colorScheme.onPrimary,
+                color = semantic.heroGold,
                 strokeWidth = 2.dp,
             )
             Spacer(Modifier.width(10.dp))
@@ -225,6 +227,7 @@ fun GoogleSignInButton(
                 Icon(
                     imageVector = Icons.Rounded.AccountCircle,
                     contentDescription = null,
+                    tint = semantic.heroGold,
                     modifier = Modifier.size(20.dp),
                 )
                 Text(

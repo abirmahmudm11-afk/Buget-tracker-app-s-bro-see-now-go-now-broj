@@ -27,11 +27,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.automirrored.rounded.CompareArrows
+import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.PieChart
-import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.Add
@@ -44,7 +45,6 @@ import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.PieChart
-import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Savings
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Smartphone
@@ -93,6 +93,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.model.AccountSummary
 import com.example.model.AccountType
@@ -118,7 +119,7 @@ enum class SpendlyTopTab(
     val testTag: String,
 ) {
     HOME("home", "Home", Icons.Rounded.Home, Icons.Outlined.Home, "nav_home"),
-    ACTIVITY("activity", "Activity", Icons.Rounded.ReceiptLong, Icons.Outlined.ReceiptLong, "nav_activity"),
+    ACTIVITY("activity", "Activity", Icons.AutoMirrored.Rounded.ReceiptLong, Icons.AutoMirrored.Outlined.ReceiptLong, "nav_activity"),
     BUDGETS("budgets", "Budgets", Icons.Rounded.PieChart, Icons.Outlined.PieChart, "nav_budgets"),
     MORE("more", "More", Icons.Rounded.GridView, Icons.Outlined.GridView, "nav_more"),
 }
@@ -150,28 +151,33 @@ fun accountAccentPair(type: AccountType, isDark: Boolean = false): Pair<Color, C
 
 @Composable
 fun SpendlyBrandLogo(modifier: Modifier = Modifier) {
+    val semantic = SpendlyTheme.semantic
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .size(34.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.primary),
-            contentAlignment = Alignment.Center,
+        Surface(
+            modifier = Modifier.size(36.dp),
+            shape = RoundedCornerShape(11.dp),
+            color = semantic.heroSurface,
+            border = BorderStroke(1.dp, semantic.heroGold.copy(alpha = 0.45f)),
         ) {
-            Icon(
-                imageVector = Icons.Rounded.AccountBalanceWallet,
-                contentDescription = "Spendly emblem",
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(18.dp),
-            )
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Rounded.AccountBalanceWallet,
+                    contentDescription = "Spendly emblem",
+                    tint = semantic.heroGold,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
         Text(
             text = "Spendly",
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.3).sp,
+            ),
             color = MaterialTheme.colorScheme.onSurface,
         )
     }
@@ -296,6 +302,7 @@ fun MonthSelectorChip(
     Surface(
         onClick = onClick,
         modifier = modifier
+            .touchSpringCard(pressScale = 0.96f, maxTiltDeg = 4f)
             .minimumInteractiveComponentSize()
             .testTag("month_selector_button"),
         shape = RoundedCornerShape(999.dp),
@@ -338,9 +345,11 @@ fun LedgerGroupCard(
 ) {
     val semantic = SpendlyTheme.semantic
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .touchSpringCard(pressScale = 0.988f, maxTiltDeg = 3.2f),
         shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = if (semantic.isDark) 0.92f else 0.96f),
         border = BorderStroke(1.dp, semantic.surfaceBorder),
     ) {
         Column(content = content)
@@ -529,9 +538,10 @@ fun BudgetProgressCard(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
+            .touchSpringCard(pressScale = 0.976f, maxTiltDeg = 5.5f, hapticOnPress = true)
             .testTag("budget_card_${summary.budget.id}"),
         shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = if (semantic.isDark) 0.92f else 0.96f),
         border = BorderStroke(1.dp, semantic.surfaceBorder),
     ) {
         Column(
@@ -675,9 +685,10 @@ fun AccountLedgerCard(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
+            .touchSpringCard(pressScale = 0.976f, maxTiltDeg = 5.5f, hapticOnPress = true)
             .testTag("account_card_${account.id}"),
         shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = if (semantic.isDark) 0.92f else 0.96f),
         border = BorderStroke(1.dp, semantic.surfaceBorder),
     ) {
         Column(
@@ -810,9 +821,11 @@ fun EmptyLedgerState(
     val lineColor = MaterialTheme.colorScheme.outlineVariant
 
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .touchSpringCard(pressScale = 0.985f, maxTiltDeg = 4f),
         shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = if (semantic.isDark) 0.92f else 0.96f),
         border = BorderStroke(1.dp, semantic.surfaceBorder),
     ) {
         Column(

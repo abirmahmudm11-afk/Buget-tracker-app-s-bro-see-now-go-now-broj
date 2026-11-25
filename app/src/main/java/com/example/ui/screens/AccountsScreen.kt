@@ -79,6 +79,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.model.AccountRecord
@@ -91,6 +92,8 @@ import com.example.ui.components.Interactive3DWalletCard
 import com.example.ui.components.LedgerGroupCard
 import com.example.ui.components.SearchableCurrencySheet
 import com.example.ui.components.TransactionLedgerRow
+import com.example.ui.components.WalletDeckStage
+import com.example.ui.components.touchSpringCard
 import com.example.ui.theme.MoneyHeroStyle
 import com.example.ui.theme.SpendlyTheme
 import com.example.ui.theme.SpendlyTokens
@@ -135,13 +138,19 @@ fun AccountsScreen(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = Color.Transparent,
                 ),
-                title = { Text("Wallet & Accounts") },
+                title = {
+                    Text(
+                        "Wallet & Accounts",
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("accounts_back")) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
@@ -182,9 +191,10 @@ fun AccountsScreen(
             ) {
                 item {
                     Surface(
+                        modifier = Modifier.touchSpringCard(pressScale = 0.982f, maxTiltDeg = 5f, hapticOnPress = true),
                         shape = RoundedCornerShape(SpendlyTokens.HeroRadius),
                         color = semantic.heroSurface,
-                        border = BorderStroke(1.dp, semantic.heroBorder),
+                        border = BorderStroke(1.dp, semantic.heroGold.copy(alpha = 0.28f)),
                     ) {
                         Column(
                             modifier = Modifier.padding(20.dp),
@@ -388,13 +398,19 @@ fun AccountDetailScreen(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = Color.Transparent,
                 ),
-                title = { Text(account.name) },
+                title = {
+                    Text(
+                        account.name,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("account_detail_back")) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
@@ -441,15 +457,17 @@ fun AccountDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 item {
-                    Interactive3DWalletCard(
-                        account = account,
-                        balanceMinor = summary.calculatedBalanceMinor,
-                        hideBalances = uiState.privacyHideBalances,
-                        artPrefs = artPrefs,
-                        enableDragTilt = true,
-                        secondaryHint = "Drag to tilt • Tap to flip",
-                        testTag = "account_detail_3d_card",
-                    )
+                    WalletDeckStage {
+                        Interactive3DWalletCard(
+                            account = account,
+                            balanceMinor = summary.calculatedBalanceMinor,
+                            hideBalances = uiState.privacyHideBalances,
+                            artPrefs = artPrefs,
+                            enableDragTilt = true,
+                            secondaryHint = "Drag to tilt • Tap to flip",
+                            testTag = "account_detail_3d_card",
+                        )
+                    }
                 }
 
                 item {

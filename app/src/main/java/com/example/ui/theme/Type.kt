@@ -26,17 +26,24 @@ val SpendlyTypography = Typography(
     displaySmall = TextStyle(
         fontFamily = PublicSansFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 34.sp,
-        lineHeight = 40.sp,
-        letterSpacing = (-0.6).sp,
+        fontSize = 36.sp,
+        lineHeight = 42.sp,
+        letterSpacing = (-0.9).sp,
         fontFeatureSettings = "tnum",
+    ),
+    headlineLarge = TextStyle(
+        fontFamily = PublicSansFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 31.sp,
+        lineHeight = 37.sp,
+        letterSpacing = (-0.7).sp,
     ),
     headlineMedium = TextStyle(
         fontFamily = PublicSansFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 26.sp,
         lineHeight = 32.sp,
-        letterSpacing = (-0.4).sp,
+        letterSpacing = (-0.45).sp,
     ),
     headlineSmall = TextStyle(
         fontFamily = PublicSansFamily,
@@ -100,16 +107,16 @@ val SpendlyTypography = Typography(
         fontWeight = FontWeight.SemiBold,
         fontSize = 11.sp,
         lineHeight = 15.sp,
-        letterSpacing = 0.25.sp,
+        letterSpacing = 0.3.sp,
     ),
 )
 
 val MoneyHeroStyle = TextStyle(
     fontFamily = PublicSansFamily,
     fontWeight = FontWeight.Bold,
-    fontSize = 36.sp,
-    lineHeight = 42.sp,
-    letterSpacing = (-0.8).sp,
+    fontSize = 38.sp,
+    lineHeight = 44.sp,
+    letterSpacing = (-1.0).sp,
     fontFeatureSettings = "tnum",
 )
 

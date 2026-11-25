@@ -12,6 +12,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -53,14 +55,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -256,8 +263,9 @@ enum class CardNetworkBrand(val displayLabel: String) {
 }
 
 /**
- * Interactive Google Wallet 3D Card with optional 2-axis drag tilt, tap-to-flip 180°,
- * real uploaded card photo / bank logo support, and authentic card network logos.
+ * Interactive Google Wallet 3D Card with always-active tactile press tilt, optional 2-axis
+ * drag tilt, tap-to-flip 180° with haptic feedback, real card photo / bank logo support,
+ * and authentic card network marks.
  */
 @Composable
 fun Interactive3DWalletCard(
@@ -272,6 +280,7 @@ fun Interactive3DWalletCard(
     secondaryHint: String = "Tap card to flip",
     testTag: String = "wallet_card_${account.id}",
 ) {
+    val haptic = LocalHapticFeedback.current
     val finish = remember(account, artPrefs.finishId) {
         CardFinishPreset.resolve(account, artPrefs.finishId)
     }
@@ -281,6 +290,9 @@ fun Interactive3DWalletCard(
 
     var isFlipped by remember(account.id) { mutableStateOf(false) }
     var isDragging by remember(account.id) { mutableStateOf(false) }
+    var isPressed by remember(account.id) { mutableStateOf(false) }
+    var pressOffset by remember(account.id) { mutableStateOf(Offset.Zero) }
+    var cardBoxSize by remember(account.id) { mutableStateOf(IntSize.Zero) }
     var dragRotX by remember(account.id) { mutableFloatStateOf(0f) }
     var dragRotY by remember(account.id) { mutableFloatStateOf(0f) }
 
@@ -295,39 +307,64 @@ fun Interactive3DWalletCard(
         label = "idlePhase",
     )
 
-    val idleRotY = if (isDragging || !enableDragTilt) 0f else sin(idlePhase) * 4.5f
-    val idleRotX = if (isDragging || !enableDragTilt) 0f else sin(idlePhase * 0.7f + 0.9f) * 2.5f
+    val idleRotY = if (isDragging || isPressed) 0f else sin(idlePhase) * 4.5f
+    val idleRotX = if (isDragging || isPressed) 0f else sin(idlePhase * 0.7f + 0.9f) * 2.5f
 
-    val targetRotX = if (isDragging) dragRotX else idleRotX
+    val normTouchX = if (cardBoxSize.width > 0) {
+        ((pressOffset.x / cardBoxSize.width.toFloat()) - 0.5f).coerceIn(-0.5f, 0.5f) * 2f
+    } else 0f
+    val normTouchY = if (cardBoxSize.height > 0) {
+        ((pressOffset.y / cardBoxSize.height.toFloat()) - 0.5f).coerceIn(-0.5f, 0.5f) * 2f
+    } else 0f
+
+    val touchTiltY = if (isPressed && !isDragging) normTouchX * 11f else 0f
+    val touchTiltX = if (isPressed && !isDragging) -normTouchY * 8f else 0f
+
+    val targetRotX = when {
+        isDragging -> dragRotX
+        isPressed -> touchTiltX
+        else -> idleRotX
+    }
     val targetRotY = (if (isFlipped) 180f else 0f) +
-        (if (isDragging) dragRotY else idleRotY) +
+        when {
+            isDragging -> dragRotY
+            isPressed -> touchTiltY
+            else -> idleRotY
+        } +
         externalTiltY
 
     val animatedRotX by animateFloatAsState(
         targetValue = targetRotX,
         animationSpec = spring(
-            dampingRatio = if (isDragging) Spring.DampingRatioNoBouncy else 0.65f,
-            stiffness = if (isDragging) Spring.StiffnessHigh else Spring.StiffnessMediumLow,
+            dampingRatio = if (isDragging) Spring.DampingRatioNoBouncy else 0.60f,
+            stiffness = if (isDragging) Spring.StiffnessHigh else Spring.StiffnessMedium,
         ),
         label = "rotX",
     )
     val animatedRotY by animateFloatAsState(
         targetValue = targetRotY,
         animationSpec = spring(
-            dampingRatio = if (isDragging) Spring.DampingRatioNoBouncy else 0.72f,
-            stiffness = if (isDragging) Spring.StiffnessHigh else Spring.StiffnessMediumLow,
+            dampingRatio = if (isDragging) Spring.DampingRatioNoBouncy else 0.64f,
+            stiffness = if (isDragging) Spring.StiffnessHigh else Spring.StiffnessMedium,
         ),
         label = "rotY",
     )
     val animatedScale by animateFloatAsState(
-        targetValue = if (isDragging) 1.022f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        targetValue = when {
+            isDragging -> 1.024f
+            isPressed -> 0.972f
+            else -> 1f
+        },
+        animationSpec = spring(
+            dampingRatio = 0.58f,
+            stiffness = Spring.StiffnessMedium,
+        ),
         label = "scale",
     )
 
     val normalizedY = ((animatedRotY % 360f) + 360f) % 360f
     val showFront = normalizedY <= 90f || normalizedY >= 270f
-    val sheenBias = (((animatedRotY % 180f) + sin(idlePhase) * 8f) / 30f).coerceIn(-1f, 1f)
+    val sheenBias = (((animatedRotY % 180f) + sin(idlePhase) * 8f + touchTiltY * 1.4f) / 28f).coerceIn(-1f, 1f)
 
     val effectiveTextPrimary = if (hasCustomPhoto) Color.White else finish.textPrimary
     val effectiveTextMuted = if (hasCustomPhoto) Color(0xFFE5ECE9) else finish.textMuted
@@ -350,7 +387,7 @@ fun Interactive3DWalletCard(
                 .height(cardHeight + 14.dp),
             contentAlignment = Alignment.TopCenter,
         ) {
-            // Dynamic 3D ground shadow
+            // Dynamic 3D ground shadow reacting to tilt & press
             Box(
                 modifier = Modifier
                     .padding(horizontal = 20.dp)
@@ -359,17 +396,43 @@ fun Interactive3DWalletCard(
                     .graphicsLayer {
                         translationX = -animatedRotY.coerceIn(-25f, 25f) * 0.6f
                         translationY = 10.dp.toPx() + animatedRotX.coerceIn(-20f, 20f) * 0.35f
-                        scaleX = 0.94f
-                        scaleY = 0.94f
+                        scaleX = if (isPressed) 0.92f else 0.94f
+                        scaleY = if (isPressed) 0.92f else 0.94f
                     }
                     .clip(RoundedCornerShape(22.dp))
-                    .background(Color.Black.copy(alpha = 0.18f)),
+                    .background(Color.Black.copy(alpha = if (isDragging) 0.24f else 0.18f)),
             )
 
+            // Non-consuming touch observer works seamlessly inside HorizontalPager too
+            val touchObserverModifier = Modifier
+                .onSizeChanged { cardBoxSize = it }
+                .pointerInput(account.id) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        isPressed = true
+                        pressOffset = down.position
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val active = event.changes.firstOrNull { it.pressed }
+                            if (active != null) {
+                                pressOffset = active.position
+                            } else {
+                                break
+                            }
+                        }
+                        isPressed = false
+                    }
+                }
+
             val gestureModifier = if (enableDragTilt) {
-                Modifier
+                touchObserverModifier
                     .pointerInput(account.id) {
-                        detectTapGestures(onTap = { isFlipped = !isFlipped })
+                        detectTapGestures(
+                            onTap = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                isFlipped = !isFlipped
+                            },
+                        )
                     }
                     .pointerInput(account.id) {
                         detectDragGestures(
@@ -392,8 +455,13 @@ fun Interactive3DWalletCard(
                         )
                     }
             } else {
-                Modifier.pointerInput(account.id) {
-                    detectTapGestures(onTap = { isFlipped = !isFlipped })
+                touchObserverModifier.pointerInput(account.id) {
+                    detectTapGestures(
+                        onTap = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            isFlipped = !isFlipped
+                        },
+                    )
                 }
             }
 
@@ -413,8 +481,12 @@ fun Interactive3DWalletCard(
                 shape = RoundedCornerShape(20.dp),
                 color = Color.Transparent,
                 border = BorderStroke(
-                    width = 1.dp,
-                    color = if (effectiveIsLight) Color.Black.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.26f),
+                    width = if (isPressed || isDragging) 1.4.dp else 1.dp,
+                    color = when {
+                        isPressed || isDragging -> Color(0xFFE0C078).copy(alpha = 0.72f)
+                        effectiveIsLight -> Color.Black.copy(alpha = 0.14f)
+                        else -> Color.White.copy(alpha = 0.26f)
+                    },
                 ),
             ) {
                 if (showFront) {

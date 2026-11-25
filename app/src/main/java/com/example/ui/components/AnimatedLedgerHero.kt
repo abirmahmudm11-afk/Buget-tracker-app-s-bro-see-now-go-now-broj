@@ -125,118 +125,135 @@ fun AnimatedLedgerHero(
     val backCardOne = deckCards[(selectedIndex + 1) % deckCards.size]
     val backCardTwo = deckCards[(selectedIndex + 2) % deckCards.size]
 
-    Column(
-        modifier = modifier
-            .widthIn(max = 440.dp)
-            .fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    WalletDeckStage(
+        modifier = modifier.widthIn(max = 460.dp),
     ) {
-        // Google Wallet Stacked Back-Card Peeks + Active Interactive 3D Front Card
-        Box(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.TopCenter,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // Back card 2 (deepest peek edge)
-            val back2Top by animateDpAsState(0.dp, spring(stiffness = Spring.StiffnessMediumLow), label = "b2")
+            // Google Wallet Stacked Back-Card Peeks + Active Interactive 3D Front Card
             Box(
-                modifier = Modifier
-                    .padding(top = back2Top, start = 28.dp, end = 28.dp)
-                    .fillMaxWidth()
-                    .height(26.dp)
-                    .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(backCardTwo.art.finishId.let {
-                                CardFinishPreset.resolve(backCardTwo.account, it).startColor
-                            }, CardFinishPreset.resolve(backCardTwo.account, backCardTwo.art.finishId).midColor)
-                        )
-                    ),
-            )
-
-            // Back card 1 (mid peek edge)
-            Box(
-                modifier = Modifier
-                    .padding(top = 12.dp, start = 14.dp, end = 14.dp)
-                    .fillMaxWidth()
-                    .height(28.dp)
-                    .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(
-                                CardFinishPreset.resolve(backCardOne.account, backCardOne.art.finishId).startColor,
-                                CardFinishPreset.resolve(backCardOne.account, backCardOne.art.finishId).midColor,
-                            )
-                        )
-                    ),
-            )
-
-            // Interactive 3D Front Card
-            AnimatedContent(
-                targetState = activeCard,
-                transitionSpec = {
-                    (fadeIn(tween(220)) + scaleIn(initialScale = 0.95f, animationSpec = spring(stiffness = Spring.StiffnessMedium)))
-                        .togetherWith(fadeOut(tween(150)))
-                },
-                modifier = Modifier.padding(top = 24.dp),
-                label = "activeWalletDeckCard",
-            ) { current ->
-                Interactive3DWalletCard(
-                    account = current.account,
-                    balanceMinor = current.balanceMinor,
-                    hideBalances = false,
-                    artPrefs = current.art,
-                    enableDragTilt = true,
-                    secondaryHint = "Drag tilt • Tap flip",
-                    testTag = "animated_3d_card",
-                )
-            }
-        }
-
-        // Tactile Wallet Stack Switcher Pills
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            deckCards.forEachIndexed { idx, card ->
-                val selected = idx == selectedIndex
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                // Back card 2 (deepest peek edge)
+                val back2Top by animateDpAsState(0.dp, spring(stiffness = Spring.StiffnessMediumLow), label = "b2")
                 Surface(
-                    onClick = { selectedIndex = idx },
-                    shape = RoundedCornerShape(999.dp),
-                    color = if (selected) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surface
-                    },
-                    border = BorderStroke(
-                        width = if (selected) 1.5.dp else 1.dp,
-                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                    ),
-                    modifier = Modifier.testTag("wallet_deck_tab_$idx"),
+                    onClick = { selectedIndex = (selectedIndex + 2) % deckCards.size },
+                    modifier = Modifier
+                        .padding(top = back2Top, start = 28.dp, end = 28.dp)
+                        .fillMaxWidth()
+                        .height(26.dp)
+                        .touchSpringCard(pressScale = 0.96f, maxTiltDeg = 3f),
+                    shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
+                    color = Color.Transparent,
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(9.dp)
-                                .clip(CircleShape)
-                                .background(card.chipColor),
-                        )
-                        Text(
-                            text = card.chipTitle,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        CardFinishPreset.resolve(backCardTwo.account, backCardTwo.art.finishId).startColor,
+                                        CardFinishPreset.resolve(backCardTwo.account, backCardTwo.art.finishId).midColor,
+                                    )
+                                )
                             ),
-                            color = if (selected) {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        )
+                    )
+                }
+
+                // Back card 1 (mid peek edge)
+                Surface(
+                    onClick = { selectedIndex = (selectedIndex + 1) % deckCards.size },
+                    modifier = Modifier
+                        .padding(top = 12.dp, start = 14.dp, end = 14.dp)
+                        .fillMaxWidth()
+                        .height(28.dp)
+                        .touchSpringCard(pressScale = 0.96f, maxTiltDeg = 3f),
+                    shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
+                    color = Color.Transparent,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        CardFinishPreset.resolve(backCardOne.account, backCardOne.art.finishId).startColor,
+                                        CardFinishPreset.resolve(backCardOne.account, backCardOne.art.finishId).midColor,
+                                    )
+                                )
+                            ),
+                    )
+                }
+
+                // Interactive 3D Front Card
+                AnimatedContent(
+                    targetState = activeCard,
+                    transitionSpec = {
+                        (fadeIn(tween(220)) + scaleIn(initialScale = 0.95f, animationSpec = spring(stiffness = Spring.StiffnessMedium)))
+                            .togetherWith(fadeOut(tween(150)))
+                    },
+                    modifier = Modifier.padding(top = 24.dp),
+                    label = "activeWalletDeckCard",
+                ) { current ->
+                    Interactive3DWalletCard(
+                        account = current.account,
+                        balanceMinor = current.balanceMinor,
+                        hideBalances = false,
+                        artPrefs = current.art,
+                        enableDragTilt = true,
+                        secondaryHint = "Drag tilt • Tap flip",
+                        testTag = "animated_3d_card",
+                    )
+                }
+            }
+
+            // Tactile Wallet Stack Switcher Pills
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                deckCards.forEachIndexed { idx, card ->
+                    val selected = idx == selectedIndex
+                    Surface(
+                        onClick = { selectedIndex = idx },
+                        shape = RoundedCornerShape(999.dp),
+                        color = if (selected) {
+                            Color.White.copy(alpha = 0.16f)
+                        } else {
+                            Color.White.copy(alpha = 0.06f)
+                        },
+                        border = BorderStroke(
+                            width = if (selected) 1.2.dp else 0.8.dp,
+                            color = if (selected) Color(0xFFE0C078) else Color.White.copy(alpha = 0.18f),
+                        ),
+                        modifier = Modifier
+                            .touchSpringCard(pressScale = 0.94f, maxTiltDeg = 4f)
+                            .testTag("wallet_deck_tab_$idx"),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(9.dp)
+                                    .clip(CircleShape)
+                                    .background(card.chipColor),
+                            )
+                            Text(
+                                text = card.chipTitle,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                ),
+                                color = if (selected) Color(0xFFF8FAF9) else Color(0xFFAEC4BD),
+                            )
+                        }
                     }
                 }
             }
@@ -254,6 +271,7 @@ fun AnimatedMoneyText(
     showPositivePlus: Boolean = false,
     hidden: Boolean = false,
     hiddenText: String = "••••••",
+    maxLines: Int = Int.MAX_VALUE,
 ) {
     val animatedFloat by animateFloatAsState(
         targetValue = amountMinor.toFloat(),
@@ -273,6 +291,8 @@ fun AnimatedMoneyText(
         text = displayText,
         style = style,
         color = color,
+        maxLines = maxLines,
+        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
         modifier = modifier,
     )
 }

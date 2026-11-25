@@ -4,64 +4,64 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// Light Palette — Nordic Paper & Deep Spruce (Architectural Financial Precision)
-val LightBackground = Color(0xFFF4F4F0)
+// Light Palette — Nordic Paper & Deep Spruce (Private-Wealth Precision)
+val LightBackground = Color(0xFFF6F5F1)
 val LightSurface = Color(0xFFFFFFFF)
-val LightSurfaceLow = Color(0xFFECECE7)
-val LightSurfaceContainer = Color(0xFFE4E4DE)
-val LightSurfaceHigh = Color(0xFFDBDBD4)
+val LightSurfaceLow = Color(0xFFEFEEE9)
+val LightSurfaceContainer = Color(0xFFE6E5DF)
+val LightSurfaceHigh = Color(0xFFDDDCD5)
 
-val LightPrimary = Color(0xFF0F5C4D)
+val LightPrimary = Color(0xFF0C4F42)
 val LightOnPrimary = Color(0xFFFFFFFF)
-val LightPrimaryContainer = Color(0xFFDCEEE9)
-val LightOnPrimaryContainer = Color(0xFF0A3A30)
+val LightPrimaryContainer = Color(0xFFD9ECE6)
+val LightOnPrimaryContainer = Color(0xFF07332A)
 
-val LightSecondary = Color(0xFF284B63)
+val LightSecondary = Color(0xFF234258)
 val LightOnSecondary = Color(0xFFFFFFFF)
 val LightSecondaryContainer = Color(0xFFDCE6EE)
-val LightOnSecondaryContainer = Color(0xFF162C3C)
+val LightOnSecondaryContainer = Color(0xFF132736)
 
-val LightTertiary = Color(0xFF1F637A)
+val LightTertiary = Color(0xFF8C6B32)
 val LightOnTertiary = Color(0xFFFFFFFF)
-val LightTertiaryContainer = Color(0xFFD9EDF4)
-val LightOnTertiaryContainer = Color(0xFF0D3A49)
+val LightTertiaryContainer = Color(0xFFF5EBDC)
+val LightOnTertiaryContainer = Color(0xFF3D2B0D)
 
-val LightOnSurface = Color(0xFF141716)
-val LightOnSurfaceVariant = Color(0xFF535B58)
-val LightOutline = Color(0xFF838C88)
-val LightOutlineVariant = Color(0xFFE0E0DA)
+val LightOnSurface = Color(0xFF111413)
+val LightOnSurfaceVariant = Color(0xFF525A57)
+val LightOutline = Color(0xFF818A86)
+val LightOutlineVariant = Color(0xFFE2E1DA)
 
 val LightError = Color(0xFFB42334)
 val LightOnError = Color(0xFFFFFFFF)
 val LightErrorContainer = Color(0xFFFCE6E9)
 val LightOnErrorContainer = Color(0xFF6B101B)
 
-// Dark Palette — Composed Nordic Slate & Sage Mint
-val DarkBackground = Color(0xFF0E1110)
-val DarkSurface = Color(0xFF161A19)
-val DarkSurfaceLow = Color(0xFF1D2220)
-val DarkSurfaceContainer = Color(0xFF242A27)
-val DarkSurfaceHigh = Color(0xFF2D3431)
+// Dark Palette — Composed Obsidian Slate & Sage Mint
+val DarkBackground = Color(0xFF0B0E0D)
+val DarkSurface = Color(0xFF131816)
+val DarkSurfaceLow = Color(0xFF1A201E)
+val DarkSurfaceContainer = Color(0xFF222825)
+val DarkSurfaceHigh = Color(0xFF2B322F)
 
-val DarkPrimary = Color(0xFF4CC2A5)
-val DarkOnPrimary = Color(0xFF06261E)
-val DarkPrimaryContainer = Color(0xFF173D34)
-val DarkOnPrimaryContainer = Color(0xFFBCECE0)
+val DarkPrimary = Color(0xFF52CCA9)
+val DarkOnPrimary = Color(0xFF05241C)
+val DarkPrimaryContainer = Color(0xFF153A31)
+val DarkOnPrimaryContainer = Color(0xFFC2EFE2)
 
 val DarkSecondary = Color(0xFF8FB4D4)
 val DarkOnSecondary = Color(0xFF0C2336)
 val DarkSecondaryContainer = Color(0xFF1D3448)
 val DarkOnSecondaryContainer = Color(0xFFD3E6F6)
 
-val DarkTertiary = Color(0xFF72C0D8)
-val DarkOnTertiary = Color(0xFF072936)
-val DarkTertiaryContainer = Color(0xFF163846)
-val DarkOnTertiaryContainer = Color(0xFFCBEBF5)
+val DarkTertiary = Color(0xFFD9B66B)
+val DarkOnTertiary = Color(0xFF2B2009)
+val DarkTertiaryContainer = Color(0xFF362A14)
+val DarkOnTertiaryContainer = Color(0xFFF5E3B8)
 
-val DarkOnSurface = Color(0xFFECEFEB)
-val DarkOnSurfaceVariant = Color(0xFFA0A9A5)
-val DarkOutline = Color(0xFF56605C)
-val DarkOutlineVariant = Color(0xFF262C2A)
+val DarkOnSurface = Color(0xFFEEF1EE)
+val DarkOnSurfaceVariant = Color(0xFF9EA8A4)
+val DarkOutline = Color(0xFF535D59)
+val DarkOutlineVariant = Color(0xFF232927)
 
 val DarkError = Color(0xFFF27C89)
 val DarkOnError = Color(0xFF470C13)
@@ -82,8 +82,10 @@ data class SpendlySemanticColors(
     val slateAccent: Color,
     val slateContainer: Color,
     val heroSurface: Color,
+    val heroSurfaceElevated: Color,
     val heroBorder: Color,
     val heroAccent: Color,
+    val heroGold: Color,
     val heroWarn: Color,
     val onHeroSurface: Color,
     val onHeroSurfaceMuted: Color,
@@ -103,14 +105,16 @@ val LightSemanticColors = SpendlySemanticColors(
     warningContainer = Color(0xFFFDF0D5),
     slateAccent = Color(0xFF4A4E69),
     slateContainer = Color(0xFFEAEBF2),
-    heroSurface = Color(0xFF102A24),
-    heroBorder = Color(0xFF1E473D),
-    heroAccent = Color(0xFF66DFB9),
+    heroSurface = Color(0xFF0C231E),
+    heroSurfaceElevated = Color(0xFF153830),
+    heroBorder = Color(0xFF245246),
+    heroAccent = Color(0xFF6AE2BC),
+    heroGold = Color(0xFFD8B86E),
     heroWarn = Color(0xFFF4C05A),
-    onHeroSurface = Color(0xFFF7FAF9),
-    onHeroSurfaceMuted = Color(0xFFB5C9C3),
-    onHeroWell = Color(0xFF183830),
-    surfaceBorder = Color(0xFFE0E0DA),
+    onHeroSurface = Color(0xFFF8FAF9),
+    onHeroSurfaceMuted = Color(0xFFAEC4BD),
+    onHeroWell = Color(0xFF15332C),
+    surfaceBorder = Color(0xFFE3E2DB),
 )
 
 val DarkSemanticColors = SpendlySemanticColors(
@@ -125,14 +129,16 @@ val DarkSemanticColors = SpendlySemanticColors(
     warningContainer = Color(0xFF3F2D12),
     slateAccent = Color(0xFFB4B9D6),
     slateContainer = Color(0xFF282B3A),
-    heroSurface = Color(0xFF182421),
-    heroBorder = Color(0xFF283A35),
+    heroSurface = Color(0xFF131D1A),
+    heroSurfaceElevated = Color(0xFF1D2C28),
+    heroBorder = Color(0xFF2B3E38),
     heroAccent = Color(0xFF5AD6B3),
+    heroGold = Color(0xFFE0C078),
     heroWarn = Color(0xFFEBB04D),
-    onHeroSurface = Color(0xFFF2F6F4),
-    onHeroSurfaceMuted = Color(0xFFA2B3AE),
-    onHeroWell = Color(0xFF20302B),
-    surfaceBorder = Color(0xFF262C2A),
+    onHeroSurface = Color(0xFFF3F6F4),
+    onHeroSurfaceMuted = Color(0xFF9EB0AA),
+    onHeroWell = Color(0xFF1C2B26),
+    surfaceBorder = Color(0xFF232927),
 )
 
 val LocalSpendlyColors = staticCompositionLocalOf { LightSemanticColors }

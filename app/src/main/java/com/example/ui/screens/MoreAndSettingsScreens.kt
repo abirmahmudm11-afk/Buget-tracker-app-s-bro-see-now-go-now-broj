@@ -1,5 +1,9 @@
 package com.example.ui.screens
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.HelpOutline
+import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.BarChart
@@ -38,6 +43,7 @@ import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -65,17 +71,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.model.CsvImportRow
 import com.example.model.TransactionType
+import com.example.notifications.SpendlyNotificationHelper
 import com.example.ui.components.LedgerGroupCard
 import com.example.ui.components.SearchableCurrencySheet
 import com.example.ui.components.categoryIconFor
+import com.example.ui.components.touchSpringCard
 import com.example.ui.theme.SpendlyTheme
 import com.example.ui.theme.SpendlyTokens
 import com.example.ui.theme.ThemeMode
@@ -98,8 +110,10 @@ fun MoreScreen(
     onNavigateCurrency: () -> Unit,
     onNavigateSettingsDetail: (String) -> Unit,
     onTogglePreviewData: (Boolean) -> Unit,
+    onSignOut: () -> Unit = {},
 ) {
     val semantic = SpendlyTheme.semantic
+    var showSignOutConfirm by remember { mutableStateOf(false) }
     val initials = remember(uiState.profileName) {
         uiState.profileName
             .split(" ")
@@ -132,17 +146,27 @@ fun MoreScreen(
                 }
             }
 
-            // Profile Summary Card (Nordic Spruce Ledger Hero)
+            // Profile Summary Card (Nordic Spruce & Gold Ledger Hero)
             item {
                 Surface(
                     onClick = { onNavigateSettingsDetail("profile") },
+                    modifier = Modifier.touchSpringCard(pressScale = 0.98f, maxTiltDeg = 5.5f, hapticOnPress = true),
                     shape = RoundedCornerShape(SpendlyTokens.HeroRadius),
                     color = semantic.heroSurface,
-                    border = BorderStroke(1.dp, semantic.heroBorder),
+                    border = BorderStroke(1.dp, semantic.heroGold.copy(alpha = 0.28f)),
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .drawBehind {
+                                drawRect(
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(semantic.heroSurfaceElevated, semantic.heroSurface),
+                                        start = Offset(0f, 0f),
+                                        end = Offset(size.width, size.height),
+                                    ),
+                                )
+                            }
                             .padding(20.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
@@ -335,7 +359,7 @@ fun MoreScreen(
                 }
             }
 
-            // Sample Preview Data Switch for inspecting Empty vs Populated UI
+            // Client Portfolio Data Switch for inspecting Empty vs Populated UI
             item {
                 LedgerGroupCard {
                     Row(
@@ -352,11 +376,11 @@ fun MoreScreen(
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
                             Text(
-                                text = "Interactive Preview Ledger",
+                                text = "Preloaded Client Portfolio",
                                 style = MaterialTheme.typography.titleSmall,
                             )
                             Text(
-                                text = "Toggle off to inspect empty states across screens, or on to restore sample preview data.",
+                                text = "Toggle off to clear ledger records or on to restore the starter portfolio.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -370,8 +394,51 @@ fun MoreScreen(
                 }
             }
 
+            // Account Session / Sign Out
+            item {
+                LedgerGroupCard {
+                    MoreMenuRow(
+                        icon = Icons.AutoMirrored.Rounded.Logout,
+                        iconTint = semantic.expense,
+                        iconBg = semantic.expenseContainer,
+                        title = "Sign Out",
+                        subtitle = "Switch Google account or lock session",
+                        onClick = { showSignOutConfirm = true },
+                        testTag = "more_sign_out",
+                    )
+                }
+            }
+
             item { Spacer(Modifier.height(16.dp)) }
         }
+    }
+
+    if (showSignOutConfirm) {
+        AlertDialog(
+            onDismissRequest = { showSignOutConfirm = false },
+            title = { Text("Sign Out?") },
+            text = { Text("You will be returned to the sign-in screen. Your cloud ledger remains safely synced.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSignOutConfirm = false
+                        onSignOut()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text("Sign Out")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showSignOutConfirm = false },
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text("Cancel")
+                }
+            },
+        )
     }
 }
 
@@ -383,7 +450,7 @@ private fun ProfileStatPill(
 ) {
     val semantic = SpendlyTheme.semantic
     Surface(
-        modifier = modifier,
+        modifier = modifier.touchSpringCard(pressScale = 0.96f, maxTiltDeg = 6f),
         shape = RoundedCornerShape(12.dp),
         color = semantic.onHeroWell,
     ) {
@@ -423,13 +490,20 @@ fun CategoriesScreen(
     var nameError by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = Color.Transparent,
                 ),
-                title = { Text("Categories", style = MaterialTheme.typography.titleLarge) },
+                title = {
+                    Text(
+                        "Categories",
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
@@ -466,8 +540,9 @@ fun CategoriesScreen(
                 items(uiState.categories, key = { it.id }) { cat ->
                     val (catTint, catBg) = categoryColorPair(cat.iconKey, semantic.isDark)
                     Surface(
+                        modifier = Modifier.touchSpringCard(pressScale = 0.98f, maxTiltDeg = 4.5f),
                         shape = RoundedCornerShape(SpendlyTokens.RowRadius),
-                        color = MaterialTheme.colorScheme.surface,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = if (semantic.isDark) 0.92f else 0.96f),
                         border = BorderStroke(1.dp, semantic.surfaceBorder),
                     ) {
                         Row(
@@ -629,13 +704,20 @@ fun ImportExportScreen(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = Color.Transparent,
                 ),
-                title = { Text("Import & Export", style = MaterialTheme.typography.titleLarge) },
+                title = {
+                    Text(
+                        "Import & Export",
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
@@ -1024,7 +1106,14 @@ fun CurrencySettingsScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
-                title = { Text("Currency Settings", style = MaterialTheme.typography.titleLarge) },
+                title = {
+                    Text(
+                        "Currency Settings",
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
@@ -1168,7 +1257,10 @@ fun SettingsDetailScreen(
     onSetThemeMode: (ThemeMode) -> Unit,
     onSetLanguage: (String) -> Unit,
     onUpdatePreferences: (profileName: String?, budgetAlerts: Boolean?, weeklyDigest: Boolean?, hideBalances: Boolean?) -> Unit,
+    onUpdateDailyReminder: (Boolean) -> Unit = {},
+    onSignOut: () -> Unit = {},
 ) {
+    val context = LocalContext.current
     val title = when (section) {
         "appearance" -> "Appearance & Language"
         "notifications" -> "Notifications"
@@ -1179,6 +1271,16 @@ fun SettingsDetailScreen(
     }
 
     var editingName by remember(uiState.profileName) { mutableStateOf(uiState.profileName) }
+    var showSignOutConfirm by remember { mutableStateOf(false) }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (!granted) {
+            onUpdateDailyReminder(false)
+            SpendlyNotificationHelper.updateDailyReminderSchedule(context, false)
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -1187,7 +1289,14 @@ fun SettingsDetailScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
-                title = { Text(title, style = MaterialTheme.typography.titleLarge) },
+                title = {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("settings_detail_back")) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
@@ -1300,7 +1409,12 @@ fun SettingsDetailScreen(
                                 title = "Budget Threshold Alerts",
                                 subtitle = "Highlight categories at 85% usage or over budget.",
                                 checked = uiState.budgetAlertsEnabled,
-                                onCheckedChange = { onUpdatePreferences(null, it, null, null) },
+                                onCheckedChange = { enabled ->
+                                    if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !SpendlyNotificationHelper.hasPermission(context)) {
+                                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    }
+                                    onUpdatePreferences(null, enabled, null, null)
+                                },
                             )
                         }
                         item {
@@ -1308,7 +1422,26 @@ fun SettingsDetailScreen(
                                 title = "Weekly Cash-Flow Digest",
                                 subtitle = "Weekly summary reminder of net spending vs income.",
                                 checked = uiState.weeklyDigestEnabled,
-                                onCheckedChange = { onUpdatePreferences(null, null, it, null) },
+                                onCheckedChange = { enabled ->
+                                    if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !SpendlyNotificationHelper.hasPermission(context)) {
+                                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    }
+                                    onUpdatePreferences(null, null, enabled, null)
+                                },
+                            )
+                        }
+                        item {
+                            PreferenceToggleCard(
+                                title = "Daily Evening Check-In",
+                                subtitle = "Gentle 8:00 PM reminder to log daily expenses.",
+                                checked = uiState.dailyReminderEnabled,
+                                onCheckedChange = { enabled ->
+                                    if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !SpendlyNotificationHelper.hasPermission(context)) {
+                                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    }
+                                    onUpdateDailyReminder(enabled)
+                                    SpendlyNotificationHelper.updateDailyReminderSchedule(context, enabled)
+                                },
                             )
                         }
                     }
@@ -1369,6 +1502,22 @@ fun SettingsDetailScreen(
                                 }
                             }
                         }
+                        item {
+                            OutlinedButton(
+                                onClick = { showSignOutConfirm = true },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp)
+                                    .testTag("profile_sign_out_button"),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            ) {
+                                Icon(Icons.AutoMirrored.Rounded.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.size(8.dp))
+                                Text("Sign Out")
+                            }
+                        }
                     }
 
                     "support" -> {
@@ -1397,6 +1546,34 @@ fun SettingsDetailScreen(
                 }
             }
         }
+    }
+
+    if (showSignOutConfirm) {
+        AlertDialog(
+            onDismissRequest = { showSignOutConfirm = false },
+            title = { Text("Sign Out?") },
+            text = { Text("You will be returned to the sign-in screen. Your cloud ledger remains safely synced.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSignOutConfirm = false
+                        onSignOut()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text("Sign Out")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showSignOutConfirm = false },
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text("Cancel")
+                }
+            },
+        )
     }
 }
 

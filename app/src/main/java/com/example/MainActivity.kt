@@ -51,6 +51,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.credentials.CredentialManager
+import com.example.auth.signOutUser
 import com.example.data.SpendlyRepository
 import com.example.model.TransactionRecord
 import com.example.model.TransactionType
@@ -139,6 +141,7 @@ fun SpendlyRoot() {
 @Composable
 fun SpendlyApp(viewModel: SpendlyViewModel) {
     val context = LocalContext.current
+    val credentialManager = remember(context) { CredentialManager.create(context) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -238,8 +241,10 @@ fun SpendlyApp(viewModel: SpendlyViewModel) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val useSideRail = maxWidth >= 600.dp
 
+                com.example.ui.components.LuxuryVaultBackdrop(prominent = false)
+
                 Scaffold(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
                     snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
                     bottomBar = {
                         if (showTopLevelChrome && !useSideRail) {
@@ -393,10 +398,13 @@ fun SpendlyApp(viewModel: SpendlyViewModel) {
                                             viewModel.togglePreviewSampleData(enabled)
                                             scope.launch {
                                                 snackbarHostState.showSnackbar(
-                                                    if (enabled) "Interactive preview ledger loaded"
-                                                    else "Preview data cleared — inspecting empty states"
+                                                    if (enabled) "Starter client portfolio loaded"
+                                                    else "Ledger records cleared"
                                                 )
                                             }
+                                        },
+                                        onSignOut = {
+                                            signOutUser(credentialManager = credentialManager, scope = scope)
                                         },
                                     )
                                 }
@@ -561,7 +569,20 @@ fun SpendlyApp(viewModel: SpendlyViewModel) {
                                         onNavigateBack = { navController.popBackStack() },
                                         onSetThemeMode = viewModel::setThemeMode,
                                         onSetLanguage = viewModel::setLanguage,
-                                        onUpdatePreferences = viewModel::updateProfileAndPreferences,
+                                        onUpdatePreferences = { name, alerts, digest, hideBal ->
+                                            viewModel.updateProfileAndPreferences(
+                                                profileName = name,
+                                                budgetAlertsEnabled = alerts,
+                                                weeklyDigestEnabled = digest,
+                                                privacyHideBalances = hideBal,
+                                            )
+                                        },
+                                        onUpdateDailyReminder = { enabled ->
+                                            viewModel.updateProfileAndPreferences(dailyReminderEnabled = enabled)
+                                        },
+                                        onSignOut = {
+                                            signOutUser(credentialManager = credentialManager, scope = scope)
+                                        },
                                     )
                                 }
                             }

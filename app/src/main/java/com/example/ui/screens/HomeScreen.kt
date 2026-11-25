@@ -72,6 +72,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -81,6 +84,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.model.AccountSummary
 import com.example.model.HomeTransactionFilter
@@ -100,7 +104,9 @@ import com.example.ui.components.MonthSelectorChip
 import com.example.ui.components.QuickExpenseModalSheet
 import com.example.ui.components.SpendlyBrandLogo
 import com.example.ui.components.TransactionLedgerRow
+import com.example.ui.components.WalletDeckStage
 import com.example.ui.components.WalletMiniCardThumbnail
+import com.example.ui.components.touchSpringCard
 import com.example.ui.components.accountAccentPair
 import com.example.ui.components.accountTypeIcon
 import com.example.ui.theme.MoneyHeroStyle
@@ -210,6 +216,7 @@ fun HomeScreen(
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val isWide = maxWidth >= 720.dp
+        val isCompact = maxWidth < 360.dp
 
         LazyColumn(
             modifier = Modifier
@@ -287,19 +294,25 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text(
+                                text = "PRIVATE LEDGER",
+                                style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.2.sp),
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                            )
                             Text(
                                 text = "Hello, ${uiState.profileName.substringBefore(" ")}",
                                 style = MaterialTheme.typography.headlineMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
-                            if (uiState.isPreviewDataActive) {
-                                Text(
-                                    text = "Sample preview active",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
                         }
                         MonthSelectorChip(
                             period = uiState.selectedPeriod,
@@ -329,29 +342,11 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Text(
-                                text = if (walletSummaries.isEmpty()) "My Wallet" else "My Wallet (${walletSummaries.size})",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            if (walletSummaries.isNotEmpty()) {
-                                Surface(
-                                    shape = RoundedCornerShape(999.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                ) {
-                                    Text(
-                                        text = "Tap card to flip",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                    )
-                                }
-                            }
-                        }
+                        Text(
+                            text = if (walletSummaries.isEmpty()) "My Wallet" else "My Wallet (${walletSummaries.size})",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
 
                         TextButton(
                             onClick = onManageAccounts,
@@ -363,7 +358,7 @@ fun HomeScreen(
                                 modifier = Modifier.size(16.dp),
                             )
                             Text(
-                                text = if (walletSummaries.isEmpty()) "Add Card" else "Add / Edit",
+                                text = if (walletSummaries.isEmpty()) "Add Card" else "Manage",
                                 style = MaterialTheme.typography.labelLarge,
                             )
                         }
@@ -372,7 +367,9 @@ fun HomeScreen(
                     if (walletSummaries.isEmpty()) {
                         Surface(
                             onClick = onManageAccounts,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .touchSpringCard(pressScale = 0.976f, maxTiltDeg = 5.5f, hapticOnPress = true),
                             shape = RoundedCornerShape(20.dp),
                             color = MaterialTheme.colorScheme.surface,
                             border = BorderStroke(1.dp, semantic.surfaceBorder),
@@ -416,77 +413,85 @@ fun HomeScreen(
                         }
                     } else {
                         val pagerState = rememberPagerState(pageCount = { walletSummaries.size })
-                        HorizontalPager(
-                            state = pagerState,
-                            contentPadding = PaddingValues(horizontal = if (walletSummaries.size > 1) 18.dp else 0.dp),
-                            pageSpacing = 12.dp,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { page ->
-                            val summary = walletSummaries[page]
-                            val artPrefs = remember(summary.account.id, artVersion) {
-                                CardArtStore.getCardArt(context, summary.account.id)
-                            }
-                            val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
-                            val cardScale = (1f - abs(pageOffset).coerceIn(0f, 1f) * 0.06f)
+                        WalletDeckStage {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                HorizontalPager(
+                                    state = pagerState,
+                                    contentPadding = PaddingValues(horizontal = if (walletSummaries.size > 1) 14.dp else 0.dp),
+                                    pageSpacing = 12.dp,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) { page ->
+                                    val summary = walletSummaries[page]
+                                    val artPrefs = remember(summary.account.id, artVersion) {
+                                        CardArtStore.getCardArt(context, summary.account.id)
+                                    }
+                                    val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                                    val cardScale = (1f - abs(pageOffset).coerceIn(0f, 1f) * 0.06f)
 
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .graphicsLayer {
-                                        scaleX = cardScale
-                                        scaleY = cardScale
-                                    },
-                                verticalArrangement = Arrangement.spacedBy(6.dp),
-                            ) {
-                                Interactive3DWalletCard(
-                                    account = summary.account,
-                                    balanceMinor = summary.calculatedBalanceMinor,
-                                    hideBalances = hide,
-                                    artPrefs = artPrefs,
-                                    enableDragTilt = false,
-                                    externalTiltY = (-pageOffset * 18f).coerceIn(-22f, 22f),
-                                    secondaryHint = "Tap front",
-                                    testTag = "home_wallet_card_${summary.account.id}",
-                                )
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 6.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text(
-                                        text = "${summary.transactionCount} transactions",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    TextButton(
-                                        onClick = { onOpenAccountDetail(summary.account.id) },
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .graphicsLayer {
+                                                scaleX = cardScale
+                                                scaleY = cardScale
+                                            },
+                                        verticalArrangement = Arrangement.spacedBy(4.dp),
                                     ) {
-                                        Text("Inspect & Edit", style = MaterialTheme.typography.labelMedium)
+                                        Interactive3DWalletCard(
+                                            account = summary.account,
+                                            balanceMinor = summary.calculatedBalanceMinor,
+                                            hideBalances = hide,
+                                            artPrefs = artPrefs,
+                                            enableDragTilt = false,
+                                            externalTiltY = (-pageOffset * 18f).coerceIn(-22f, 22f),
+                                            secondaryHint = "Tap card",
+                                            testTag = "home_wallet_card_${summary.account.id}",
+                                        )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 6.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Text(
+                                                text = "${summary.transactionCount} transactions",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = semantic.onHeroSurfaceMuted,
+                                            )
+                                            TextButton(
+                                                onClick = { onOpenAccountDetail(summary.account.id) },
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                            ) {
+                                                Text(
+                                                    "Inspect & Edit",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    color = semantic.heroGold,
+                                                )
+                                            }
+                                        }
                                     }
                                 }
-                            }
-                        }
 
-                        if (walletSummaries.size > 1) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-                            ) {
-                                repeat(walletSummaries.size) { index ->
-                                    val active = pagerState.currentPage == index
-                                    Box(
-                                        modifier = Modifier
-                                            .height(6.dp)
-                                            .width(if (active) 20.dp else 6.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                if (active) MaterialTheme.colorScheme.primary
-                                                else MaterialTheme.colorScheme.outlineVariant
-                                            ),
-                                    )
+                                if (walletSummaries.size > 1) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                                    ) {
+                                        repeat(walletSummaries.size) { index ->
+                                            val active = pagerState.currentPage == index
+                                            Box(
+                                                modifier = Modifier
+                                                    .height(6.dp)
+                                                    .width(if (active) 22.dp else 6.dp)
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        if (active) semantic.heroGold
+                                                        else Color.White.copy(alpha = 0.28f)
+                                                    ),
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -510,13 +515,37 @@ fun HomeScreen(
                         modifier = Modifier
                             .widthIn(max = 860.dp)
                             .fillMaxWidth()
+                            .touchSpringCard(pressScale = 0.982f, maxTiltDeg = 5.5f, hapticOnPress = true)
                             .testTag("home_header_card"),
                         shape = RoundedCornerShape(SpendlyTokens.HeroRadius),
                         color = semantic.heroSurface,
-                        border = BorderStroke(1.dp, semantic.heroBorder),
+                        border = BorderStroke(1.dp, semantic.heroGold.copy(alpha = 0.28f)),
                     ) {
                         Column(
-                            modifier = Modifier.padding(20.dp),
+                            modifier = Modifier
+                                .drawBehind {
+                                    drawRect(
+                                        brush = Brush.linearGradient(
+                                            colors = listOf(
+                                                semantic.heroSurfaceElevated,
+                                                semantic.heroSurface,
+                                            ),
+                                            start = Offset(0f, 0f),
+                                            end = Offset(size.width, size.height),
+                                        ),
+                                    )
+                                    drawRect(
+                                        brush = Brush.radialGradient(
+                                            colors = listOf(
+                                                semantic.heroGold.copy(alpha = 0.14f),
+                                                Color.Transparent,
+                                            ),
+                                            center = Offset(size.width * 0.92f, size.height * 0.08f),
+                                            radius = size.maxDimension * 0.55f,
+                                        ),
+                                    )
+                                }
+                                .padding(20.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             Row(
@@ -524,7 +553,10 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.Top,
                             ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Column(
+                                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
                                     Text(
                                         text = "Total balance",
                                         style = MaterialTheme.typography.labelLarge,
@@ -537,6 +569,7 @@ fun HomeScreen(
                                         color = semantic.onHeroSurface,
                                         hidden = hide,
                                         hiddenText = "••••••",
+                                        maxLines = 1,
                                         modifier = Modifier.testTag("home_total_balance_value"),
                                     )
                                 }
@@ -544,12 +577,13 @@ fun HomeScreen(
                                 Surface(
                                     shape = RoundedCornerShape(999.dp),
                                     color = semantic.onHeroWell,
+                                    border = BorderStroke(1.dp, semantic.heroGold.copy(alpha = 0.35f)),
                                 ) {
                                     Text(
                                         text = baseCode,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = semantic.heroAccent,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                        color = semantic.heroGold,
+                                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 5.dp),
                                     )
                                 }
                             }
@@ -596,6 +630,7 @@ fun HomeScreen(
                                 color = semantic.onHeroWell,
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .touchSpringCard(pressScale = 0.975f, maxTiltDeg = 4f)
                                     .testTag("home_remaining_budget_pill"),
                             ) {
                                 Column(
@@ -670,7 +705,7 @@ fun HomeScreen(
                     modifier = Modifier
                         .widthIn(max = 860.dp)
                         .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 10.dp),
                 ) {
                     QuickActionTile(
                         label = "Expense",
@@ -711,91 +746,91 @@ fun HomeScreen(
                 }
             }
 
-            // Transactions Feed
-            item(key = "home_transactions_section") {
-                Column(
-                    modifier = Modifier
-                        .widthIn(max = 860.dp)
-                        .fillMaxWidth()
-                        .animateContentSize(
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioNoBouncy,
-                                stiffness = Spring.StiffnessMediumLow,
-                            )
-                        ),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    SectionHeader(
-                        title = "Transactions",
-                        actionLabel = "View all",
-                        onAction = onViewAllTransactions,
-                        testTag = "home_view_all",
-                    )
+            // Transactions Feed & Category Pie (Side-by-side on wide screens, stacked on phones)
+            item(key = "home_transactions_and_categories") {
+                val transactionsSection: @Composable (Modifier) -> Unit = { sectionModifier ->
+                    Column(
+                        modifier = sectionModifier
+                            .animateContentSize(
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMediumLow,
+                                )
+                            ),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        SectionHeader(
+                            title = "Transactions",
+                            actionLabel = "View all",
+                            onAction = onViewAllTransactions,
+                            testTag = "home_view_all",
+                        )
 
-                    HomeTransactionFilterBar(
-                        selectedFilter = uiState.homeFilter,
-                        onSelectFilter = onSelectHomeFilter,
-                    )
+                        HomeTransactionFilterBar(
+                            selectedFilter = uiState.homeFilter,
+                            onSelectFilter = onSelectHomeFilter,
+                        )
 
-                    AnimatedContent(
-                        targetState = uiState.homeFilter,
-                        transitionSpec = {
-                            (fadeIn(tween(220, easing = FastOutSlowInEasing)) +
-                                slideInVertically(
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioNoBouncy,
-                                        stiffness = Spring.StiffnessMediumLow,
-                                    ),
-                                    initialOffsetY = { (it * 0.05f).toInt() },
-                                )) togetherWith fadeOut(tween(140))
-                        },
-                        label = "homeTxList",
-                    ) { activeFilter ->
-                        val txs = filteredHomeTransactions
-                        if (txs.isEmpty()) {
-                            val emptySubtitle = when (activeFilter) {
-                                HomeTransactionFilter.ALL ->
-                                    "Log an expense or income entry for ${DateFormatters.formatMonthPeriod(uiState.selectedPeriod)}."
-                                HomeTransactionFilter.INCOME ->
-                                    "No income recorded in ${DateFormatters.formatMonthPeriod(uiState.selectedPeriod)}."
-                                HomeTransactionFilter.EXPENSE ->
-                                    "No expenses recorded in ${DateFormatters.formatMonthPeriod(uiState.selectedPeriod)}."
-                            }
-                            EmptyLedgerState(
-                                title = "No ${if (activeFilter == HomeTransactionFilter.ALL) "" else activeFilter.label.lowercase() + " "}transactions",
-                                subtitle = emptySubtitle,
-                                actionLabel = if (activeFilter == HomeTransactionFilter.INCOME) "Add Income" else "Log Expense",
-                                onActionClick = {
-                                    if (activeFilter == HomeTransactionFilter.INCOME) onAddIncome()
-                                    else showQuickExpenseModal = true
-                                },
-                            )
-                        } else {
-                            LedgerGroupCard {
-                                txs.forEachIndexed { idx, tx ->
-                                    androidx.compose.runtime.key(activeFilter, tx.id) {
-                                        val accName = uiState.accountById(tx.accountId)?.name ?: "Account"
-                                        val destName = tx.destinationAccountId?.let { uiState.accountById(it)?.name }
-                                        val cat = uiState.categoryById(tx.categoryId)
-                                        AnimatedTransactionItemEntrance(index = idx) {
-                                            Column {
-                                                TransactionLedgerRow(
-                                                    transaction = tx,
-                                                    category = cat,
-                                                    accountName = accName,
-                                                    destinationAccountName = destName,
-                                                    defaultCurrencyCode = baseCode,
-                                                    convertedBaseMinor = uiState.convertToBase(tx.amountMinor, tx.currencyCode),
-                                                    hideBalances = hide,
-                                                    onClick = { onOpenTransactionDetail(tx) },
-                                                    grouped = true,
-                                                )
-                                                if (idx < txs.lastIndex) {
-                                                    HorizontalDivider(
-                                                        modifier = Modifier.padding(start = 68.dp, end = 16.dp),
-                                                        thickness = 0.5.dp,
-                                                        color = MaterialTheme.colorScheme.outlineVariant,
+                        AnimatedContent(
+                            targetState = uiState.homeFilter,
+                            transitionSpec = {
+                                (fadeIn(tween(220, easing = FastOutSlowInEasing)) +
+                                    slideInVertically(
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioNoBouncy,
+                                            stiffness = Spring.StiffnessMediumLow,
+                                        ),
+                                        initialOffsetY = { (it * 0.05f).toInt() },
+                                    )) togetherWith fadeOut(tween(140))
+                            },
+                            label = "homeTxList",
+                        ) { activeFilter ->
+                            val txs = filteredHomeTransactions
+                            if (txs.isEmpty()) {
+                                val emptySubtitle = when (activeFilter) {
+                                    HomeTransactionFilter.ALL ->
+                                        "Log an expense or income entry for ${DateFormatters.formatMonthPeriod(uiState.selectedPeriod)}."
+                                    HomeTransactionFilter.INCOME ->
+                                        "No income recorded in ${DateFormatters.formatMonthPeriod(uiState.selectedPeriod)}."
+                                    HomeTransactionFilter.EXPENSE ->
+                                        "No expenses recorded in ${DateFormatters.formatMonthPeriod(uiState.selectedPeriod)}."
+                                }
+                                EmptyLedgerState(
+                                    title = "No ${if (activeFilter == HomeTransactionFilter.ALL) "" else activeFilter.label.lowercase() + " "}transactions",
+                                    subtitle = emptySubtitle,
+                                    actionLabel = if (activeFilter == HomeTransactionFilter.INCOME) "Add Income" else "Log Expense",
+                                    onActionClick = {
+                                        if (activeFilter == HomeTransactionFilter.INCOME) onAddIncome()
+                                        else showQuickExpenseModal = true
+                                    },
+                                )
+                            } else {
+                                LedgerGroupCard {
+                                    txs.forEachIndexed { idx, tx ->
+                                        androidx.compose.runtime.key(activeFilter, tx.id) {
+                                            val accName = uiState.accountById(tx.accountId)?.name ?: "Account"
+                                            val destName = tx.destinationAccountId?.let { uiState.accountById(it)?.name }
+                                            val cat = uiState.categoryById(tx.categoryId)
+                                            AnimatedTransactionItemEntrance(index = idx) {
+                                                Column {
+                                                    TransactionLedgerRow(
+                                                        transaction = tx,
+                                                        category = cat,
+                                                        accountName = accName,
+                                                        destinationAccountName = destName,
+                                                        defaultCurrencyCode = baseCode,
+                                                        convertedBaseMinor = uiState.convertToBase(tx.amountMinor, tx.currencyCode),
+                                                        hideBalances = hide,
+                                                        onClick = { onOpenTransactionDetail(tx) },
+                                                        grouped = true,
                                                     )
+                                                    if (idx < txs.lastIndex) {
+                                                        HorizontalDivider(
+                                                            modifier = Modifier.padding(start = 68.dp, end = 16.dp),
+                                                            thickness = 0.5.dp,
+                                                            color = MaterialTheme.colorScheme.outlineVariant,
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -805,63 +840,82 @@ fun HomeScreen(
                         }
                     }
                 }
-            }
 
-            // Spending by Category Pie Chart (Main Dashboard)
-            item(key = "home_category_pie_chart") {
-                Column(
-                    modifier = Modifier
-                        .widthIn(max = 860.dp)
-                        .fillMaxWidth()
-                        .testTag("home_category_pie_card"),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    SectionHeader(
-                        title = "Spending by Category",
-                        actionLabel = "Reports",
-                        onAction = onOpenReports,
-                        testTag = "home_categories_reports",
-                    )
-
-                    if (categoryPieSlices.isEmpty()) {
-                        EmptyLedgerState(
-                            title = "No category spending yet",
-                            subtitle = "Record an expense for ${DateFormatters.formatMonthPeriod(uiState.selectedPeriod)} to view your category pie chart.",
-                            actionLabel = "Add Expense",
-                            onActionClick = onAddExpense,
+                val categoryPieSection: @Composable (Modifier) -> Unit = { sectionModifier ->
+                    Column(
+                        modifier = sectionModifier.testTag("home_category_pie_card"),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        SectionHeader(
+                            title = "Spending by Category",
+                            actionLabel = "Reports",
+                            onAction = onOpenReports,
+                            testTag = "home_categories_reports",
                         )
-                    } else {
-                        LedgerGroupCard {
-                            Column(
-                                modifier = Modifier.padding(18.dp),
-                                verticalArrangement = Arrangement.spacedBy(14.dp),
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically,
+
+                        if (categoryPieSlices.isEmpty()) {
+                            EmptyLedgerState(
+                                title = "No category spending yet",
+                                subtitle = "Record an expense for ${DateFormatters.formatMonthPeriod(uiState.selectedPeriod)} to view your category pie chart.",
+                                actionLabel = "Add Expense",
+                                onActionClick = onAddExpense,
+                            )
+                        } else {
+                            LedgerGroupCard {
+                                Column(
+                                    modifier = Modifier.padding(18.dp),
+                                    verticalArrangement = Arrangement.spacedBy(14.dp),
                                 ) {
-                                    Text(
-                                        text = DateFormatters.formatMonthPeriod(uiState.selectedPeriod),
-                                        style = MaterialTheme.typography.titleSmall,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                    )
-                                    Text(
-                                        text = if (hide) "Spending ••••" else "Total ${MoneyFormatter.formatMinor(uiState.monthlyExpensesBaseMinor, baseCode)}",
-                                        style = MoneyRowStyle,
-                                        color = semantic.expense,
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Text(
+                                            text = DateFormatters.formatMonthPeriod(uiState.selectedPeriod),
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        Text(
+                                            text = if (hide) "Spending ••••" else "Total ${MoneyFormatter.formatMinor(uiState.monthlyExpensesBaseMinor, baseCode)}",
+                                            style = MoneyRowStyle,
+                                            color = semantic.expense,
+                                        )
+                                    }
+                                    CategoryPieChart(
+                                        slices = categoryPieSlices,
+                                        currencyCode = baseCode,
+                                        hideBalances = hide,
+                                        onSliceInspect = { slice ->
+                                            onOpenCategoryInActivity(slice.categoryId)
+                                        },
                                     )
                                 }
-                                CategoryPieChart(
-                                    slices = categoryPieSlices,
-                                    currencyCode = baseCode,
-                                    hideBalances = hide,
-                                    onSliceInspect = { slice ->
-                                        onOpenCategoryInActivity(slice.categoryId)
-                                    },
-                                )
                             }
                         }
+                    }
+                }
+
+                if (isWide) {
+                    Row(
+                        modifier = Modifier
+                            .widthIn(max = 860.dp)
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        transactionsSection(Modifier.weight(1f))
+                        categoryPieSection(Modifier.weight(1f))
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .widthIn(max = 860.dp)
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                    ) {
+                        transactionsSection(Modifier.fillMaxWidth())
+                        categoryPieSection(Modifier.fillMaxWidth())
                     }
                 }
             }
@@ -893,6 +947,7 @@ fun HomeScreen(
                             onClick = onOpenBudgets,
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .touchSpringCard(pressScale = 0.978f, maxTiltDeg = 5f)
                                 .testTag("home_create_budget_cta"),
                             shape = RoundedCornerShape(SpendlyTokens.CardRadius),
                             color = MaterialTheme.colorScheme.surface,
@@ -1121,7 +1176,7 @@ private fun HeroMetricWell(
 ) {
     val semantic = SpendlyTheme.semantic
     Surface(
-        modifier = modifier,
+        modifier = modifier.touchSpringCard(pressScale = 0.968f, maxTiltDeg = 6.5f),
         shape = RoundedCornerShape(12.dp),
         color = semantic.onHeroWell,
     ) {
@@ -1154,6 +1209,7 @@ private fun HeroMetricWell(
                 color = semantic.onHeroSurface,
                 hidden = hide,
                 hiddenText = "••••",
+                maxLines = 1,
             )
         }
     }
@@ -1185,6 +1241,7 @@ private fun QuickActionTile(
         onClick = onClick,
         interactionSource = interactionSource,
         modifier = modifier
+            .touchSpringCard(pressScale = 0.96f, maxTiltDeg = 7.5f, hapticOnPress = true)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -1192,7 +1249,7 @@ private fun QuickActionTile(
             .minimumInteractiveComponentSize()
             .testTag(testTag),
         shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = if (semantic.isDark) 0.92f else 0.96f),
         border = BorderStroke(1.dp, semantic.surfaceBorder),
     ) {
         Column(
@@ -1245,10 +1302,11 @@ private fun AccountCarouselCard(
     Surface(
         onClick = onClick,
         modifier = modifier
+            .touchSpringCard(pressScale = 0.968f, maxTiltDeg = 7f, hapticOnPress = true)
             .minimumInteractiveComponentSize()
             .testTag("home_account_pill_${account.id}"),
         shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = if (semantic.isDark) 0.92f else 0.96f),
         border = BorderStroke(1.dp, semantic.surfaceBorder),
     ) {
         Column(

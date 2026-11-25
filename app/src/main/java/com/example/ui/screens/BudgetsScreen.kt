@@ -63,6 +63,7 @@ import com.example.ui.components.LedgerGroupCard
 import com.example.ui.components.MonthPickerSheet
 import com.example.ui.components.MonthSelectorChip
 import com.example.ui.components.TransactionLedgerRow
+import com.example.ui.components.touchSpringCard
 import com.example.ui.theme.SpendlyTheme
 import com.example.ui.theme.SpendlyTokens
 import com.example.util.DateFormatters
@@ -181,9 +182,10 @@ fun BudgetsScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
+                            .touchSpringCard(pressScale = 0.978f, maxTiltDeg = 5f, hapticOnPress = true)
                             .testTag("budget_card_${overall.budget.id}"),
                         shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-                        color = MaterialTheme.colorScheme.surface,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = if (semantic.isDark) 0.92f else 0.96f),
                         border = BorderStroke(1.dp, semantic.surfaceBorder),
                     ) {
                         Row(
@@ -279,8 +281,9 @@ fun BudgetsScreen(
             if (categorySummaries.isEmpty()) {
                 item {
                     Surface(
+                        modifier = Modifier.touchSpringCard(pressScale = 0.985f, maxTiltDeg = 4f),
                         shape = RoundedCornerShape(SpendlyTokens.CardRadius),
-                        color = MaterialTheme.colorScheme.surface,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = if (semantic.isDark) 0.92f else 0.96f),
                         border = BorderStroke(1.dp, semantic.surfaceBorder),
                     ) {
                         Column(

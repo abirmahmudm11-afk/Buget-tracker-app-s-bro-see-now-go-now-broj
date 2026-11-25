@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
@@ -52,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.model.MonthPeriod
 import com.example.model.ReportPeriod
@@ -211,13 +213,20 @@ fun ReportsScreen(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = Color.Transparent,
                 ),
-                title = { Text("Reports & Analytics", style = MaterialTheme.typography.titleLarge) },
+                title = {
+                    Text(
+                        "Reports & Analytics",
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("reports_back")) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
@@ -266,12 +275,13 @@ fun ReportsScreen(
             )
         },
     ) { innerPadding ->
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
             contentAlignment = Alignment.TopCenter,
         ) {
+            val isWide = maxWidth >= 720.dp
             LazyColumn(
                 modifier = Modifier
                     .widthIn(max = 860.dp)
@@ -381,9 +391,9 @@ fun ReportsScreen(
                         )
                     }
                 } else {
-                    if (categorySlices.isNotEmpty()) {
-                        item {
-                            LedgerGroupCard {
+                    item {
+                        val categoryCard: @Composable (Modifier) -> Unit = { cardModifier ->
+                            LedgerGroupCard(modifier = cardModifier) {
                                 Column(
                                     modifier = Modifier.padding(18.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -404,19 +414,37 @@ fun ReportsScreen(
                                 }
                             }
                         }
-                    }
 
-                    item {
-                        LedgerGroupCard {
-                            Column(
-                                modifier = Modifier.padding(18.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                        val trendCard: @Composable (Modifier) -> Unit = { cardModifier ->
+                            LedgerGroupCard(modifier = cardModifier) {
+                                Column(
+                                    modifier = Modifier.padding(18.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    Text("3-Month Cash Flow", style = MaterialTheme.typography.titleMedium)
+                                    MonthlyCashFlowBarChart(
+                                        points = trendPoints,
+                                        currencyCode = baseCode,
+                                    )
+                                }
+                            }
+                        }
+
+                        if (isWide && categorySlices.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.Top,
                             ) {
-                                Text("3-Month Cash Flow", style = MaterialTheme.typography.titleMedium)
-                                MonthlyCashFlowBarChart(
-                                    points = trendPoints,
-                                    currencyCode = baseCode,
-                                )
+                                categoryCard(Modifier.weight(1f))
+                                trendCard(Modifier.weight(1f))
+                            }
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                if (categorySlices.isNotEmpty()) {
+                                    categoryCard(Modifier.fillMaxWidth())
+                                }
+                                trendCard(Modifier.fillMaxWidth())
                             }
                         }
                     }
@@ -521,6 +549,8 @@ private fun ReportKpiCell(
             text = label,
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
             text = value,
@@ -529,6 +559,8 @@ private fun ReportKpiCell(
                 fontFeatureSettings = "tnum",
             ),
             color = valueColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
