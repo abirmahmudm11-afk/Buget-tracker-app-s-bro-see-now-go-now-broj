@@ -67,7 +67,7 @@ data class TransactionData(
         "userId" to uid,
         "txType" to txType.ifBlank { TransactionType.EXPENSE.name },
         "amountMinor" to resolvedAmountMinor(),
-        "currencyCode" to currencyCode.trim().take(5).ifBlank { "USD" },
+        "currencyCode" to currencyCode.trim().take(5).let { if (it.length in 3..5) it else "USD" },
         "accountId" to accountId.ifBlank { "acc_cash_default" },
         "destinationAccountId" to destinationAccountId?.takeIf { it.isNotBlank() },
         "categoryId" to category.takeIf { it.isNotBlank() },
@@ -80,21 +80,20 @@ data class TransactionData(
         "updatedAt" to FieldValue.serverTimestamp(),
     ).filterValues { it != null } as Map<String, Any>
 
-    @Suppress("UNCHECKED_CAST")
     fun toUpdateMap(): Map<String, Any> = mapOf(
         "txType" to txType.ifBlank { TransactionType.EXPENSE.name },
         "amountMinor" to resolvedAmountMinor(),
-        "currencyCode" to currencyCode.trim().take(5).ifBlank { "USD" },
+        "currencyCode" to currencyCode.trim().take(5).let { if (it.length in 3..5) it else "USD" },
         "accountId" to accountId.ifBlank { "acc_cash_default" },
-        "destinationAccountId" to destinationAccountId?.takeIf { it.isNotBlank() },
-        "categoryId" to category.takeIf { it.isNotBlank() },
+        "destinationAccountId" to (destinationAccountId?.takeIf { it.isNotBlank() } ?: FieldValue.delete()),
+        "categoryId" to (category.takeIf { it.isNotBlank() } ?: FieldValue.delete()),
         "description" to description.ifBlank { note }.trim().take(160),
         "merchant" to merchant.trim().take(100),
         "dateMillis" to date.coerceAtLeast(1L),
         "notes" to note.trim().take(500),
         "creditCardRepayment" to creditCardRepayment,
         "updatedAt" to FieldValue.serverTimestamp(),
-    ).filterValues { it != null } as Map<String, Any>
+    )
 
     companion object {
         fun fromTransactionRecord(record: TransactionRecord, uid: String = ""): TransactionData {

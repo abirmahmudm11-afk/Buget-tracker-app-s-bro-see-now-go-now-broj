@@ -46,10 +46,11 @@ class SpendlyRepository(
     private fun userDoc(uid: String) = db.collection("users").document(uid)
 
     fun observeUserProfile(userId: String): Flow<UserProfileRecord?> = flow {
-        require(userId.isNotBlank()) { "User ID must not be blank." }
-        val path = "users/$userId"
+        val uid = requireUserId()
+        require(userId.isNotBlank() && uid == userId) { "Authenticated UID mismatch." }
+        val path = "users/$uid"
         emitAll(
-            userDoc(userId)
+            userDoc(uid)
                 .snapshots()
                 .map { snapshot ->
                     if (!snapshot.exists()) null else snapshot.toUserProfile()
@@ -60,7 +61,7 @@ class SpendlyRepository(
                         .firstOrNull()
                     if (firestoreError == null && error is CancellationException) throw error
                     val exceptionToLog = firestoreError ?: (error as? Exception)
-                    if (exceptionToLog != null && auth.currentUser?.uid == userId) {
+                    if (exceptionToLog != null && auth.currentUser?.uid == uid) {
                         handleFirestoreError(exceptionToLog, OperationType.GET, path)
                     }
                     throw (firestoreError ?: error)
@@ -69,56 +70,60 @@ class SpendlyRepository(
     }
 
     fun observeAccounts(userId: String): Flow<List<AccountRecord>> = flow {
-        require(userId.isNotBlank()) { "User ID must not be blank." }
-        val path = "users/$userId/accounts"
+        val uid = requireUserId()
+        require(userId.isNotBlank() && uid == userId) { "Authenticated UID mismatch." }
+        val path = "users/$uid/accounts"
         emitAll(
-            userDoc(userId).collection("accounts")
+            userDoc(uid).collection("accounts")
                 .snapshots()
                 .map { snapshot -> snapshot.documents.mapNotNull { it.toAccountRecord() } }
                 .catch { error ->
-                    handleFlowError(error, OperationType.LIST, path, userId)
+                    handleFlowError(error, OperationType.LIST, path, uid)
                 }
         )
     }
 
     fun observeTransactions(userId: String): Flow<List<TransactionRecord>> = flow {
-        require(userId.isNotBlank()) { "User ID must not be blank." }
-        val path = "users/$userId/transactions"
+        val uid = requireUserId()
+        require(userId.isNotBlank() && uid == userId) { "Authenticated UID mismatch." }
+        val path = "users/$uid/transactions"
         emitAll(
-            userDoc(userId).collection("transactions")
+            userDoc(uid).collection("transactions")
                 .snapshots()
                 .map { snapshot ->
                     snapshot.documents.mapNotNull { it.toTransactionRecord() }
                         .sortedByDescending { it.dateMillis }
                 }
                 .catch { error ->
-                    handleFlowError(error, OperationType.LIST, path, userId)
+                    handleFlowError(error, OperationType.LIST, path, uid)
                 }
         )
     }
 
     fun observeBudgets(userId: String): Flow<List<BudgetRecord>> = flow {
-        require(userId.isNotBlank()) { "User ID must not be blank." }
-        val path = "users/$userId/budgets"
+        val uid = requireUserId()
+        require(userId.isNotBlank() && uid == userId) { "Authenticated UID mismatch." }
+        val path = "users/$uid/budgets"
         emitAll(
-            userDoc(userId).collection("budgets")
+            userDoc(uid).collection("budgets")
                 .snapshots()
                 .map { snapshot -> snapshot.documents.mapNotNull { it.toBudgetRecord() } }
                 .catch { error ->
-                    handleFlowError(error, OperationType.LIST, path, userId)
+                    handleFlowError(error, OperationType.LIST, path, uid)
                 }
         )
     }
 
     fun observeCategories(userId: String): Flow<List<CategoryRecord>> = flow {
-        require(userId.isNotBlank()) { "User ID must not be blank." }
-        val path = "users/$userId/categories"
+        val uid = requireUserId()
+        require(userId.isNotBlank() && uid == userId) { "Authenticated UID mismatch." }
+        val path = "users/$uid/categories"
         emitAll(
-            userDoc(userId).collection("categories")
+            userDoc(uid).collection("categories")
                 .snapshots()
                 .map { snapshot -> snapshot.documents.mapNotNull { it.toCategoryRecord() } }
                 .catch { error ->
-                    handleFlowError(error, OperationType.LIST, path, userId)
+                    handleFlowError(error, OperationType.LIST, path, uid)
                 }
         )
     }
@@ -276,20 +281,20 @@ class SpendlyRepository(
             path = "users/$uid/transactions/${tx.id}"
             val docRef = userDoc(uid).collection("transactions").document(tx.id)
             if (isUpdate) {
-                val payload = mapOf<String, Any?>(
+                val payload = mapOf<String, Any>(
                     "txType" to tx.type.name,
                     "amountMinor" to tx.amountMinor,
-                    "currencyCode" to tx.currencyCode.trim().take(5).ifBlank { "USD" },
+                    "currencyCode" to tx.currencyCode.trim().take(5).let { if (it.length in 3..5) it else "USD" },
                     "accountId" to tx.accountId,
-                    "destinationAccountId" to tx.destinationAccountId?.takeIf { it.isNotBlank() },
-                    "categoryId" to tx.categoryId?.takeIf { it.isNotBlank() },
+                    "destinationAccountId" to (tx.destinationAccountId?.takeIf { it.isNotBlank() } ?: FieldValue.delete()),
+                    "categoryId" to (tx.categoryId?.takeIf { it.isNotBlank() } ?: FieldValue.delete()),
                     "description" to tx.description.trim().take(160),
                     "merchant" to tx.merchant.trim().take(100),
                     "dateMillis" to tx.dateMillis.coerceAtLeast(1L),
                     "notes" to tx.notes.trim().take(500),
                     "creditCardRepayment" to tx.isCreditCardRepayment,
                     "updatedAt" to FieldValue.serverTimestamp(),
-                ).filterValues { it != null } as Map<String, Any>
+                )
                 docRef.update(payload).await()
             } else {
                 docRef.set(tx.toCreateMap(uid)).await()
@@ -516,7 +521,7 @@ class SpendlyRepository(
         "userId" to uid,
         "txType" to type.name,
         "amountMinor" to amountMinor.coerceAtLeast(1L),
-        "currencyCode" to currencyCode.trim().take(5).ifBlank { "USD" },
+        "currencyCode" to currencyCode.trim().take(5).let { if (it.length in 3..5) it else "USD" },
         "accountId" to accountId,
         "destinationAccountId" to destinationAccountId?.takeIf { it.isNotBlank() },
         "categoryId" to categoryId?.takeIf { it.isNotBlank() },

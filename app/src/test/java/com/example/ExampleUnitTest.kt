@@ -87,4 +87,35 @@ class ExampleUnitTest {
         assertEquals(1500L, MoneyFormatter.parseMajorToMinor("1500", "JPY"))
         assertEquals(null, MoneyFormatter.parseMajorToMinor("1500.5", "JPY"))
     }
+
+    @Test
+    fun transactionData_createAndUpdateMaps_conformToFirestoreRules() {
+        val data = com.example.model.TransactionData(
+            id = "tx_coffee",
+            amount = 4.75,
+            date = 0L,
+            category = "cat_dining",
+            note = "Morning latte",
+            currencyCode = "$",
+            accountId = "",
+        )
+        val createMap = data.toCreateMap("user_123")
+        assertEquals("user_123", createMap["userId"])
+        assertEquals("EXPENSE", createMap["txType"])
+        assertEquals(475L, createMap["amountMinor"])
+        assertEquals("USD", createMap["currencyCode"])
+        assertEquals("acc_cash_default", createMap["accountId"])
+        assertEquals("cat_dining", createMap["categoryId"])
+        assertEquals("Morning latte", createMap["description"])
+        assertEquals(1L, createMap["dateMillis"])
+        assertTrue(createMap.containsKey("createdAt"))
+        assertTrue(createMap.containsKey("updatedAt"))
+        assertTrue(!createMap.containsKey("id"))
+        assertTrue(!createMap.containsKey("destinationAccountId"))
+
+        val updateMap = data.copy(category = "").toUpdateMap()
+        assertEquals(com.google.firebase.firestore.FieldValue.delete(), updateMap["categoryId"])
+        assertEquals(com.google.firebase.firestore.FieldValue.delete(), updateMap["destinationAccountId"])
+        assertTrue(!updateMap.containsKey("createdAt"))
+    }
 }

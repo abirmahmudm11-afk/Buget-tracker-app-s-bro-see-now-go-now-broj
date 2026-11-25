@@ -5,6 +5,7 @@ import com.example.R
 import com.example.model.BudgetData
 import com.example.model.FirestoreCollections
 import com.example.model.TransactionData
+import com.example.model.TransactionType
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
@@ -27,7 +28,8 @@ import kotlinx.coroutines.withContext
 
 /**
  * Asynchronous Firestore CRUD repository using Kotlin Coroutines and Flow.
- * Enforces user isolation under `/users/{uid}/transactions` and `/users/{uid}/budgets`.
+ * Enforces per-user isolation under `/users/{uid}/transactions` and `/users/{uid}/budgets`
+ * and persists data to Cloud Firestore (with local offline disk cache enabled by default).
  */
 class FirestoreRepository(
     private val db: FirebaseFirestore,
@@ -55,11 +57,40 @@ class FirestoreRepository(
             .document(userId)
             .collection(FirestoreCollections.BUDGET)
 
-    fun observeTransactions(userId: String): Flow<List<TransactionData>> = flow {
-        require(userId.isNotBlank()) { "User ID must not be blank." }
-        val path = "${FirestoreCollections.USERS}/$userId/${FirestoreCollections.TRANSACTIONS}"
+    // --- Expense CRUD (scoped to the authenticated user) ---
+
+    fun observeExpenses(userId: String = auth.currentUser?.uid.orEmpty()): Flow<List<TransactionData>> =
+        observeTransactions(userId).map { list ->
+            list.filter { it.txType == TransactionType.EXPENSE.name }
+        }
+
+    suspend fun getExpenses(userId: String = auth.currentUser?.uid.orEmpty()): Result<List<TransactionData>> =
+        getTransactions(userId).map { list ->
+            list.filter { it.txType == TransactionType.EXPENSE.name }
+        }
+
+    suspend fun getExpenseById(expenseId: String): Result<TransactionData?> =
+        getTransactionById(expenseId).map { tx ->
+            tx?.takeIf { it.txType == TransactionType.EXPENSE.name }
+        }
+
+    suspend fun createExpense(expense: TransactionData): Result<String> =
+        createTransaction(expense.copy(txType = TransactionType.EXPENSE.name))
+
+    suspend fun updateExpense(expense: TransactionData): Result<Unit> =
+        updateTransaction(expense.copy(txType = TransactionType.EXPENSE.name))
+
+    suspend fun deleteExpense(expenseId: String): Result<Unit> =
+        deleteTransaction(expenseId)
+
+    // --- General Transaction CRUD ---
+
+    fun observeTransactions(userId: String = auth.currentUser?.uid.orEmpty()): Flow<List<TransactionData>> = flow {
+        val uid = requireUserId()
+        require(userId.isNotBlank() && uid == userId) { "Authenticated UID mismatch." }
+        val path = "${FirestoreCollections.USERS}/$uid/${FirestoreCollections.TRANSACTIONS}"
         emitAll(
-            transactionsCollection(userId)
+            transactionsCollection(uid)
                 .orderBy("dateMillis", Query.Direction.DESCENDING)
                 .snapshots()
                 .map { snapshot ->
@@ -71,7 +102,7 @@ class FirestoreRepository(
                         .firstOrNull()
                     if (firestoreError == null && error is CancellationException) throw error
                     val exceptionToLog = firestoreError ?: (error as? Exception)
-                    if (exceptionToLog != null && auth.currentUser?.uid == userId) {
+                    if (exceptionToLog != null && auth.currentUser?.uid == uid) {
                         handleFirestoreError(exceptionToLog, OperationType.LIST, path)
                     }
                     throw (firestoreError ?: error)
@@ -79,11 +110,11 @@ class FirestoreRepository(
         )
     }.flowOn(Dispatchers.IO)
 
-    suspend fun getTransactions(userId: String): Result<List<TransactionData>> = withContext(Dispatchers.IO) {
+    suspend fun getTransactions(userId: String = auth.currentUser?.uid.orEmpty()): Result<List<TransactionData>> = withContext(Dispatchers.IO) {
         val path = "${FirestoreCollections.USERS}/$userId/${FirestoreCollections.TRANSACTIONS}"
         try {
             val uid = requireUserId()
-            require(uid == userId) { "Authenticated UID mismatch." }
+            require(userId.isNotBlank() && uid == userId) { "Authenticated UID mismatch." }
             val snapshot = transactionsCollection(uid)
                 .orderBy("dateMillis", Query.Direction.DESCENDING)
                 .get()
@@ -94,6 +125,25 @@ class FirestoreRepository(
             throw e
         } catch (e: Exception) {
             handleFirestoreError(e, OperationType.LIST, path)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getTransactionById(transactionId: String): Result<TransactionData?> = withContext(Dispatchers.IO) {
+        var path = "${FirestoreCollections.USERS}/${auth.currentUser?.uid ?: "unauthenticated"}/${FirestoreCollections.TRANSACTIONS}/$transactionId"
+        try {
+            val uid = requireUserId()
+            require(transactionId.isNotBlank()) { "Transaction ID must not be blank." }
+            path = "${FirestoreCollections.USERS}/$uid/${FirestoreCollections.TRANSACTIONS}/$transactionId"
+            val snapshot = transactionsCollection(uid)
+                .document(transactionId)
+                .get()
+                .await()
+            Result.success(if (snapshot.exists()) snapshot.toTransactionData() else null)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.GET, path)
             Result.failure(e)
         }
     }
@@ -158,11 +208,12 @@ class FirestoreRepository(
         }
     }
 
-    fun observeBudgets(userId: String): Flow<List<BudgetData>> = flow {
-        require(userId.isNotBlank()) { "User ID must not be blank." }
-        val path = "${FirestoreCollections.USERS}/$userId/${FirestoreCollections.BUDGET}"
+    fun observeBudgets(userId: String = auth.currentUser?.uid.orEmpty()): Flow<List<BudgetData>> = flow {
+        val uid = requireUserId()
+        require(userId.isNotBlank() && uid == userId) { "Authenticated UID mismatch." }
+        val path = "${FirestoreCollections.USERS}/$uid/${FirestoreCollections.BUDGET}"
         emitAll(
-            budgetsCollection(userId)
+            budgetsCollection(uid)
                 .snapshots()
                 .map { snapshot ->
                     snapshot.documents.mapNotNull { it.toBudgetData() }
@@ -173,7 +224,7 @@ class FirestoreRepository(
                         .firstOrNull()
                     if (firestoreError == null && error is CancellationException) throw error
                     val exceptionToLog = firestoreError ?: (error as? Exception)
-                    if (exceptionToLog != null && auth.currentUser?.uid == userId) {
+                    if (exceptionToLog != null && auth.currentUser?.uid == uid) {
                         handleFirestoreError(exceptionToLog, OperationType.LIST, path)
                     }
                     throw (firestoreError ?: error)
