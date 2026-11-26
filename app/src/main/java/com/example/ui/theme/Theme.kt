@@ -1,6 +1,5 @@
 package com.example.ui.theme
 
-import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -11,6 +10,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.example.auth.findActivity
 
 private val SpendlyLightScheme = lightColorScheme(
     primary = LightPrimary,
@@ -104,7 +104,7 @@ fun SpendlyTheme(
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as? Activity)?.window
+            val window = view.context.findActivity()?.window
             if (window != null) {
                 val controller = WindowCompat.getInsetsController(window, view)
                 controller.isAppearanceLightStatusBars = !darkTheme

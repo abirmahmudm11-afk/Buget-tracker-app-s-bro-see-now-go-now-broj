@@ -117,7 +117,9 @@ fun SpendlyRoot() {
         }
     } else {
         val uid = user.uid
-        val displayName = user.displayName?.takeIf { it.isNotBlank() } ?: "Spendly User"
+        val displayName = user.displayName?.takeIf { it.isNotBlank() }
+            ?: user.email?.substringBefore("@")?.takeIf { it.isNotBlank() }
+            ?: "Spendly User"
         key(uid) {
             val repository = remember(context, uid) { SpendlyRepository(context) }
             val spendlyViewModel: SpendlyViewModel = viewModel(
@@ -542,7 +544,7 @@ fun SpendlyApp(viewModel: SpendlyViewModel) {
                                         onNavigateBack = { navController.popBackStack() },
                                         isDuplicateCandidate = viewModel::isDuplicateCandidate,
                                         onCommitCsvImport = viewModel::commitCsvImport,
-                                        onRestoreBackupSample = { viewModel.togglePreviewSampleData(true) },
+                                        onRestoreBackupSample = { viewModel.restorePreviewSnapshot() },
                                     )
                                 }
 

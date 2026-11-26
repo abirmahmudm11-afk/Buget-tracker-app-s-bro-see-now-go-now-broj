@@ -212,7 +212,7 @@ class SpendlyRepository(
                     "accountType" to account.type.name,
                     "institutionName" to account.institutionName.trim().take(80),
                     "cardNetwork" to account.cardNetwork.trim().take(40),
-                    "lastFour" to account.lastFour.trim().take(4),
+                    "lastFour" to account.lastFour.filter { it.isDigit() }.take(4),
                     "currencyCode" to account.currencyCode.trim().take(5).ifBlank { "USD" },
                     "openingBalanceMinor" to account.openingBalanceMinor,
                     "creditLimitMinor" to account.creditLimitMinor?.coerceAtLeast(0L),
@@ -256,12 +256,18 @@ class SpendlyRepository(
         return try {
             val uid = requireUserId()
             path = "users/$uid/accounts/$accountId"
-            val batch = db.batch()
-            batch.delete(userDoc(uid).collection("accounts").document(accountId))
-            linkedTransactionIds.take(400).forEach { txId ->
-                batch.delete(userDoc(uid).collection("transactions").document(txId))
+            val root = userDoc(uid)
+            val allRefs = buildList {
+                add(root.collection("accounts").document(accountId))
+                linkedTransactionIds.distinct().forEach { txId ->
+                    add(root.collection("transactions").document(txId))
+                }
             }
-            batch.commit().await()
+            allRefs.chunked(400).forEach { chunk ->
+                val batch = db.batch()
+                chunk.forEach { batch.delete(it) }
+                batch.commit().await()
+            }
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e
@@ -506,7 +512,7 @@ class SpendlyRepository(
         "accountType" to type.name,
         "institutionName" to institutionName.trim().take(80),
         "cardNetwork" to cardNetwork.trim().take(40),
-        "lastFour" to lastFour.trim().take(4),
+        "lastFour" to lastFour.filter { it.isDigit() }.take(4),
         "currencyCode" to currencyCode.trim().take(5).ifBlank { "USD" },
         "openingBalanceMinor" to openingBalanceMinor,
         "creditLimitMinor" to creditLimitMinor?.coerceAtLeast(0L),

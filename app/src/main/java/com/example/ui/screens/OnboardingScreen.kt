@@ -155,10 +155,10 @@ fun OnboardingScreen(
             Column(
                 modifier = Modifier
                     .widthIn(max = 520.dp)
-                    .fillMaxSize()
+                    .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp, vertical = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(28.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
                 SpendlyBrandLogo()
 
@@ -366,14 +366,16 @@ fun OnboardingScreen(
                     listOf(
                         "English" to "Active default language",
                         "বাংলা (Bangla)" to "Regional preference saved to profile",
-                    ).forEach { (lang, desc) ->
+                    ).forEachIndexed { idx, (lang, desc) ->
                         val active = selectedLanguage == lang
                         Surface(
                             onClick = {
                                 selectedLanguage = lang
                                 showLanguageDialog = false
                             },
-                            modifier = Modifier.pressBounce(pressScale = 0.97f),
+                            modifier = Modifier
+                                .pressBounce(pressScale = 0.97f)
+                                .testTag("onboarding_lang_option_$idx"),
                             shape = RoundedCornerShape(SpendlyTokens.RowRadius),
                             color = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
                             border = if (active) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,

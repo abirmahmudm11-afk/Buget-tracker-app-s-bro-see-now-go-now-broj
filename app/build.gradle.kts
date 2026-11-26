@@ -63,7 +63,19 @@ android {
     compose = true
     buildConfig = true
   }
-  testOptions { unitTests { isIncludeAndroidResources = true } }
+  testOptions {
+    unitTests {
+      isIncludeAndroidResources = true
+      all {
+        val prewarmedJarDir = file("/home/appuser/.m2/repository/org/robolectric/android-all-instrumented/16-robolectric-13921718-i7")
+        val currentUserRobolectric = file("${System.getProperty("user.home")}/.m2/repository/org/robolectric")
+        if (prewarmedJarDir.exists() && !currentUserRobolectric.exists()) {
+          it.systemProperty("robolectric.offline", "true")
+          it.systemProperty("robolectric.dependency.dir", prewarmedJarDir.absolutePath)
+        }
+      }
+    }
+  }
   dependenciesInfo {
     includeInApk = false
     includeInBundle = true

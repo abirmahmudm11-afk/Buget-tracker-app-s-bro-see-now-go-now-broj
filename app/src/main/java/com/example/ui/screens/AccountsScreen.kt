@@ -104,6 +104,7 @@ import com.example.util.MoneyFormatter
 import com.example.viewmodel.SpendlyUiState
 import java.util.Locale
 import java.util.UUID
+import kotlin.math.pow
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -383,12 +384,19 @@ fun AccountDetailScreen(
     val summary = uiState.accountSummaries.firstOrNull { it.account.id == accountId }
     var showEditSheet by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var hasNavigatedBack by remember { mutableStateOf(false) }
+    val safeNavigateBack: () -> Unit = {
+        if (!hasNavigatedBack) {
+            hasNavigatedBack = true
+            onNavigateBack()
+        }
+    }
     val semantic = SpendlyTheme.semantic
     val context = LocalContext.current
     val artVersion by CardArtStore.version.collectAsStateWithLifecycle()
 
     if (summary == null) {
-        LaunchedEffectFallback(onNavigateBack)
+        LaunchedEffectFallback(safeNavigateBack)
         return
     }
 
@@ -418,7 +426,7 @@ fun AccountDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(
-                        onClick = onNavigateBack,
+                        onClick = safeNavigateBack,
                         modifier = Modifier.pressBounce().testTag("account_detail_back"),
                     ) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
@@ -616,9 +624,11 @@ fun AccountDetailScreen(
                     onClick = {
                         showDeleteConfirm = false
                         onDeleteAccount(account.id)
-                        onNavigateBack()
+                        safeNavigateBack()
                     },
-                    modifier = Modifier.pressBounce(pressScale = 0.94f),
+                    modifier = Modifier
+                        .pressBounce(pressScale = 0.94f)
+                        .testTag("account_delete_confirm_button"),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 ) {
                     Text("Delete Permanently")
@@ -630,7 +640,9 @@ fun AccountDetailScreen(
                         showDeleteConfirm = false
                         onToggleArchive(account.id)
                     },
-                    modifier = Modifier.pressBounce(pressScale = 0.94f),
+                    modifier = Modifier
+                        .pressBounce(pressScale = 0.94f)
+                        .testTag("account_archive_instead_button"),
                 ) {
                     Text("Archive Instead")
                 }
@@ -677,19 +689,24 @@ fun AccountFormSheet(
     var lastFour by remember { mutableStateOf(editingAccount?.lastFour ?: "") }
     var currencyCode by remember { mutableStateOf(editingAccount?.currencyCode ?: initialCurrency) }
     var openingBalanceText by remember {
+        val initialCode = editingAccount?.currencyCode ?: initialCurrency
+        val initialSpec = CurrencyCatalog.findByCode(initialCode)
         mutableStateOf(
             if (editingAccount != null && editingAccount.openingBalanceMinor != 0L) {
-                val spec = CurrencyCatalog.findByCode(editingAccount.currencyCode)
-                val div = Math.pow(10.0, spec.minorDecimals.toDouble())
-                String.format(Locale.US, "%.${spec.minorDecimals}f", editingAccount.openingBalanceMinor / div)
-            } else "0.00"
+                val div = 10.0.pow(initialSpec.minorDecimals.toDouble())
+                String.format(Locale.US, "%.${initialSpec.minorDecimals}f", editingAccount.openingBalanceMinor / div)
+            } else if (initialSpec.minorDecimals == 0) {
+                "0"
+            } else {
+                "0.00"
+            }
         )
     }
     var creditLimitText by remember {
         mutableStateOf(
             editingAccount?.creditLimitMinor?.let {
                 val spec = CurrencyCatalog.findByCode(editingAccount.currencyCode)
-                val div = Math.pow(10.0, spec.minorDecimals.toDouble())
+                val div = 10.0.pow(spec.minorDecimals.toDouble())
                 String.format(Locale.US, "%.${spec.minorDecimals}f", it / div)
             } ?: ""
         )
@@ -726,6 +743,7 @@ fun AccountFormSheet(
     var nameError by remember { mutableStateOf<String?>(null) }
     var lastFourError by remember { mutableStateOf<String?>(null) }
     var balanceError by remember { mutableStateOf<String?>(null) }
+    var creditLimitError by remember { mutableStateOf<String?>(null) }
 
     val previewAccount = remember(
         artKey, nickname, selectedType, institution, cardNetwork, lastFour, currencyCode, creditLimitText
@@ -940,8 +958,10 @@ fun AccountFormSheet(
             OutlinedTextField(
                 value = nickname,
                 onValueChange = {
-                    nickname = it
-                    nameError = null
+                    if (it.length <= 80) {
+                        nickname = it
+                        nameError = null
+                    }
                 },
                 label = { Text("Card or account nickname *") },
                 placeholder = { Text("e.g., Chase Sapphire, Everyday Debit") },
@@ -986,7 +1006,7 @@ fun AccountFormSheet(
 
             OutlinedTextField(
                 value = institution,
-                onValueChange = { institution = it },
+                onValueChange = { if (it.length <= 80) institution = it },
                 label = { Text("Bank or card issuer (optional)") },
                 placeholder = { Text("e.g., Chase, Citi, Monzo, Wise, Amex") },
                 modifier = Modifier.fillMaxWidth().testTag("account_institution_input"),
@@ -1082,11 +1102,16 @@ fun AccountFormSheet(
             if (selectedType == AccountType.CREDIT_CARD) {
                 OutlinedTextField(
                     value = creditLimitText,
-                    onValueChange = { creditLimitText = it },
+                    onValueChange = {
+                        creditLimitText = it
+                        creditLimitError = null
+                    },
                     label = { Text("Credit limit (optional)") },
                     placeholder = { Text("e.g., 5000.00") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("account_limit_input"),
+                    isError = creditLimitError != null,
+                    supportingText = creditLimitError?.let { err -> { Text(err) } },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                 )
@@ -1094,34 +1119,51 @@ fun AccountFormSheet(
 
             OutlinedTextField(
                 value = description,
-                onValueChange = { description = it },
+                onValueChange = { if (it.length <= 240) description = it },
                 label = { Text("Description (optional)") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("account_description_input"),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
             )
 
             Button(
                 onClick = {
-                    if (nickname.isBlank()) nameError = "Enter a card or account nickname"
-                    if (lastFour.isNotEmpty() && lastFour.length != 4) lastFourError = "Enter 4 digits or leave blank"
+                    val trimmedName = nickname.trim()
+                    nameError = when {
+                        trimmedName.isBlank() -> "Enter a card or account nickname"
+                        trimmedName.length > 80 -> "Nickname must be 80 characters or fewer"
+                        else -> null
+                    }
+                    lastFourError = if (selectedType.supportsCardDetails && lastFour.isNotEmpty() && lastFour.length != 4) {
+                        "Enter 4 digits or leave blank"
+                    } else null
                     val openingMinor = if (openingBalanceText.isBlank()) 0L
                     else MoneyFormatter.parseMajorToMinor(openingBalanceText, currencyCode)
-                    if (openingMinor == null) balanceError = "Invalid opening amount"
-                    val limitMinor = if (creditLimitText.isBlank()) null
-                    else MoneyFormatter.parseMajorToMinor(creditLimitText, currencyCode)
+                    balanceError = if (openingMinor == null) "Invalid opening amount" else null
 
-                    if (nameError == null && lastFourError == null && balanceError == null && openingMinor != null) {
+                    val limitMinor = if (selectedType == AccountType.CREDIT_CARD && creditLimitText.isNotBlank()) {
+                        MoneyFormatter.parseMajorToMinor(creditLimitText, currencyCode)
+                    } else null
+                    creditLimitError = if (selectedType == AccountType.CREDIT_CARD && creditLimitText.isNotBlank() && (limitMinor == null || limitMinor <= 0L)) {
+                        "Enter a valid credit limit greater than zero"
+                    } else null
+
+                    if (nameError == null &&
+                        lastFourError == null &&
+                        balanceError == null &&
+                        creditLimitError == null &&
+                        openingMinor != null
+                    ) {
                         val savedId = onSave(
-                            nickname,
+                            trimmedName,
                             selectedType,
-                            institution,
-                            cardNetwork,
+                            institution.trim().take(80),
+                            cardNetwork.trim().take(40),
                             lastFour,
                             currencyCode,
                             openingMinor,
                             limitMinor,
-                            description,
+                            description.trim().take(240),
                         )
                         if (isCreatingNew) {
                             CardArtStore.copyDraftArtToAccount(context, artKey, savedId)
@@ -1144,8 +1186,15 @@ fun AccountFormSheet(
         SearchableCurrencySheet(
             currentCurrencyCode = currencyCode,
             onDismiss = { showCurrencyPicker = false },
-            onConfirmCurrency = {
-                currencyCode = it.code
+            onConfirmCurrency = { spec ->
+                currencyCode = spec.code
+                if (spec.minorDecimals == 0 && openingBalanceText == "0.00") {
+                    openingBalanceText = "0"
+                } else if (spec.minorDecimals == 2 && openingBalanceText == "0") {
+                    openingBalanceText = "0.00"
+                }
+                balanceError = null
+                creditLimitError = null
                 showCurrencyPicker = false
             },
         )

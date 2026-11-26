@@ -40,6 +40,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -132,7 +133,7 @@ fun QuickExpenseModalSheet(
                 }
                 IconButton(
                     onClick = onDismiss,
-                    modifier = Modifier.pressBounce(),
+                    modifier = Modifier.pressBounce().testTag("quick_expense_close_button"),
                 ) {
                     Icon(Icons.Rounded.Close, contentDescription = "Close")
                 }
@@ -198,16 +199,19 @@ fun QuickExpenseModalSheet(
                         listOf(10, 25, 50, 100).forEach { addVal ->
                             Surface(
                                 onClick = {
-                                    val cur = amountText.toDoubleOrNull() ?: 0.0
+                                    val cur = amountText.trim().replace(",", "").toDoubleOrNull() ?: 0.0
                                     val next = cur + addVal
                                     amountText = if (currencySpec.minorDecimals == 0) {
                                         next.toLong().toString()
                                     } else {
-                                        String.format(Locale.US, "%.2f", next)
+                                        String.format(Locale.US, "%.${currencySpec.minorDecimals}f", next)
                                     }
                                     amountError = null
                                 },
-                                modifier = Modifier.pressBounce(pressScale = 0.92f),
+                                modifier = Modifier
+                                    .minimumInteractiveComponentSize()
+                                    .pressBounce(pressScale = 0.92f)
+                                    .testTag("quick_expense_chip_$addVal"),
                                 shape = RoundedCornerShape(999.dp),
                                 color = MaterialTheme.colorScheme.surface,
                                 border = BorderStroke(1.dp, semantic.surfaceBorder),
@@ -223,7 +227,7 @@ fun QuickExpenseModalSheet(
                         if (amountText.isNotEmpty()) {
                             Surface(
                                 onClick = { amountText = "" },
-                                modifier = Modifier.pressBounce(pressScale = 0.92f),
+                                modifier = Modifier.minimumInteractiveComponentSize().pressBounce(pressScale = 0.92f),
                                 shape = RoundedCornerShape(999.dp),
                                 color = MaterialTheme.colorScheme.surface,
                                 border = BorderStroke(1.dp, semantic.surfaceBorder),
@@ -393,7 +397,7 @@ fun QuickExpenseModalSheet(
 
             OutlinedTextField(
                 value = noteText,
-                onValueChange = { noteText = it },
+                onValueChange = { if (it.length <= 160) noteText = it },
                 label = { Text("Merchant or note (optional)") },
                 placeholder = { Text("e.g., Trader Joe's, Lunch") },
                 singleLine = true,

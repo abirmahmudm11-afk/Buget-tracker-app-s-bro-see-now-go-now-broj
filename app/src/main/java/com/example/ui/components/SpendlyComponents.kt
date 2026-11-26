@@ -861,8 +861,10 @@ fun EmptyLedgerState(
     actionLabel: String,
     onActionClick: () -> Unit,
     modifier: Modifier = Modifier,
+    actionTestTag: String = "empty_state_primary_cta",
     secondaryActionLabel: String? = null,
     onSecondaryActionClick: (() -> Unit)? = null,
+    secondaryActionTestTag: String = "empty_state_secondary_cta",
 ) {
     val semantic = SpendlyTheme.semantic
     val primary = MaterialTheme.colorScheme.primary
@@ -929,7 +931,7 @@ fun EmptyLedgerState(
                     .fillMaxWidth()
                     .height(48.dp)
                     .pressBounce(pressScale = 0.95f, hapticOnPress = true)
-                    .testTag("empty_state_primary_cta"),
+                    .testTag(actionTestTag),
                 shape = RoundedCornerShape(12.dp),
             ) {
                 Text(actionLabel)
@@ -940,7 +942,8 @@ fun EmptyLedgerState(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
-                        .pressBounce(pressScale = 0.95f, hapticOnPress = true),
+                        .pressBounce(pressScale = 0.95f, hapticOnPress = true)
+                        .testTag(secondaryActionTestTag),
                     shape = RoundedCornerShape(12.dp),
                 ) {
                     Text(secondaryActionLabel)

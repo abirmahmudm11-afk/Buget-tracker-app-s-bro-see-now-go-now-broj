@@ -320,6 +320,37 @@ class SpendlyViewModel(
         }
     }
 
+    fun restorePreviewSnapshot() {
+        viewModelScope.launch {
+            localFilters.update { it.copy(isSyncing = true, syncError = null, lastDeletedTransaction = null) }
+            val snap = uiState.value
+            val clearRes = repository.clearAllLedgerRecords(
+                accountIds = snap.accounts.map { it.id },
+                transactionIds = snap.transactions.map { it.id },
+                budgetIds = snap.budgets.map { it.id },
+            )
+            if (clearRes.isFailure) {
+                localFilters.update {
+                    it.copy(isSyncing = false, syncError = clearRes.exceptionOrNull()?.localizedMessage)
+                }
+                return@launch
+            }
+            val seedRes = repository.seedLedgerData(
+                accounts = sampleAccounts(),
+                transactions = sampleTransactions(),
+                budgets = sampleBudgets(),
+                categories = defaultCategories(),
+                previewDataActive = true,
+            )
+            localFilters.update {
+                it.copy(
+                    isSyncing = false,
+                    syncError = seedRes.exceptionOrNull()?.localizedMessage,
+                )
+            }
+        }
+    }
+
     fun setDefaultCurrency(code: String) {
         viewModelScope.launch {
             repository.updateUserProfileFields(mapOf("defaultCurrencyCode" to code))
@@ -439,10 +470,10 @@ class SpendlyViewModel(
                 accountId = accountId,
                 destinationAccountId = if (type == TransactionType.TRANSFER) destinationAccountId else null,
                 categoryId = if (type == TransactionType.TRANSFER) null else categoryId,
-                description = description.trim().ifBlank { merchant.trim().ifBlank { type.label } },
-                merchant = merchant.trim(),
+                description = description.trim().ifBlank { merchant.trim().ifBlank { type.label } }.take(160),
+                merchant = merchant.trim().take(100),
                 dateMillis = dateMillis,
-                notes = notes.trim(),
+                notes = notes.trim().take(500),
                 isCreditCardRepayment = isCcRepayment,
             )
 
@@ -473,8 +504,13 @@ class SpendlyViewModel(
             val resolvedAccountId = if (targetAccount != null) {
                 targetAccount.id
             } else {
+                val freshId = if (current.accountById("acc_cash_default") == null) {
+                    "acc_cash_default"
+                } else {
+                    "acc_cash_${UUID.randomUUID().toString().take(8)}"
+                }
                 val defaultWallet = AccountRecord(
-                    id = "acc_cash_default",
+                    id = freshId,
                     name = "Cash Wallet",
                     type = AccountType.CASH_WALLET,
                     institutionName = "Personal",
@@ -492,6 +528,7 @@ class SpendlyViewModel(
 
             val resolvedCurrency = targetAccount?.currencyCode ?: current.defaultCurrencyCode
             val catName = current.categoryById(categoryId)?.name ?: "Expense"
+            val trimmedNote = note.trim()
             val tx = TransactionRecord(
                 id = "tx_${UUID.randomUUID().toString().take(8)}",
                 type = TransactionType.EXPENSE,
@@ -499,10 +536,10 @@ class SpendlyViewModel(
                 currencyCode = resolvedCurrency,
                 accountId = resolvedAccountId,
                 categoryId = categoryId,
-                description = note.trim().ifBlank { catName },
-                merchant = note.trim(),
+                description = trimmedNote.ifBlank { catName }.take(160),
+                merchant = trimmedNote.take(100),
                 dateMillis = dateMillis,
-                notes = note.trim(),
+                notes = trimmedNote.take(500),
             )
             repository.saveTransaction(tx, isUpdate = false)
                 .onSuccess {
@@ -605,15 +642,15 @@ class SpendlyViewModel(
         val resolvedId = existingId ?: "acc_${UUID.randomUUID().toString().take(8)}"
         val record = AccountRecord(
             id = resolvedId,
-            name = name.trim(),
+            name = name.trim().take(80),
             type = type,
-            institutionName = institutionName.trim(),
-            cardNetwork = if (type.supportsCardDetails) cardNetwork.trim() else "",
-            lastFour = if (type.supportsCardDetails) lastFour.trim().take(4) else "",
+            institutionName = institutionName.trim().take(80),
+            cardNetwork = if (type.supportsCardDetails) cardNetwork.trim().take(40) else "",
+            lastFour = if (type.supportsCardDetails) lastFour.filter { it.isDigit() }.take(4) else "",
             currencyCode = currencyCode,
             openingBalanceMinor = openingBalanceMinor,
             creditLimitMinor = if (type == AccountType.CREDIT_CARD) creditLimitMinor else null,
-            description = description.trim(),
+            description = description.trim().take(240),
             isArchived = existing?.isArchived ?: false,
         )
         viewModelScope.launch {
@@ -696,7 +733,7 @@ class SpendlyViewModel(
     fun addCategory(name: String, type: TransactionType, iconKey: String) {
         val record = CategoryRecord(
             id = "cat_${UUID.randomUUID().toString().take(8)}",
-            name = name.trim(),
+            name = name.trim().take(60),
             type = type,
             iconKey = iconKey,
             isDefault = false,
@@ -1217,32 +1254,33 @@ internal fun computeSpendlyUiState(
     }
 
     transactions.forEach { tx ->
+        val isSelfTransfer = tx.type == TransactionType.TRANSFER && tx.destinationAccountId == tx.accountId
         val srcAcc = accountsMap[tx.accountId]
         if (srcAcc != null) {
             txCountByAcc[srcAcc.id] = (txCountByAcc[srcAcc.id] ?: 0) + 1
-            val delta = if (srcAcc.type.isLiability) {
-                when (tx.type) {
-                    TransactionType.EXPENSE -> tx.amountMinor
-                    TransactionType.INCOME -> -tx.amountMinor
-                    TransactionType.TRANSFER -> tx.amountMinor
+            if (!isSelfTransfer) {
+                val delta = if (srcAcc.type.isLiability) {
+                    when (tx.type) {
+                        TransactionType.EXPENSE -> tx.amountMinor
+                        TransactionType.INCOME -> -tx.amountMinor
+                        TransactionType.TRANSFER -> tx.amountMinor
+                    }
+                } else {
+                    when (tx.type) {
+                        TransactionType.EXPENSE -> -tx.amountMinor
+                        TransactionType.INCOME -> tx.amountMinor
+                        TransactionType.TRANSFER -> -tx.amountMinor
+                    }
                 }
-            } else {
-                when (tx.type) {
-                    TransactionType.EXPENSE -> -tx.amountMinor
-                    TransactionType.INCOME -> tx.amountMinor
-                    TransactionType.TRANSFER -> -tx.amountMinor
-                }
+                balanceDeltaByAcc[srcAcc.id] = (balanceDeltaByAcc[srcAcc.id] ?: 0L) + delta
             }
-            balanceDeltaByAcc[srcAcc.id] = (balanceDeltaByAcc[srcAcc.id] ?: 0L) + delta
         }
 
         val destId = tx.destinationAccountId
-        if (tx.type == TransactionType.TRANSFER && destId != null) {
+        if (tx.type == TransactionType.TRANSFER && destId != null && !isSelfTransfer) {
             val destAcc = accountsMap[destId]
             if (destAcc != null) {
-                if (destId != tx.accountId) {
-                    txCountByAcc[destId] = (txCountByAcc[destId] ?: 0) + 1
-                }
+                txCountByAcc[destId] = (txCountByAcc[destId] ?: 0) + 1
                 val destDelta = if (destAcc.type.isLiability) -tx.amountMinor else tx.amountMinor
                 balanceDeltaByAcc[destId] = (balanceDeltaByAcc[destId] ?: 0L) + destDelta
             }

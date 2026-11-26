@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import android.Manifest
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -63,6 +64,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -93,13 +95,12 @@ import com.example.ui.theme.SpendlyTheme
 import com.example.ui.theme.SpendlyTokens
 import com.example.ui.theme.ThemeMode
 import com.example.ui.theme.categoryColorPair
+import com.example.util.CsvUtils
 import com.example.util.CurrencyCatalog
 import com.example.util.DateFormatters
 import com.example.util.MoneyFormatter
 import com.example.viewmodel.SpendlyUiState
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 @Composable
 fun MoreScreen(
@@ -151,7 +152,9 @@ fun MoreScreen(
             item {
                 Surface(
                     onClick = { onNavigateSettingsDetail("profile") },
-                    modifier = Modifier.touchSpringCard(pressScale = 0.98f, maxTiltDeg = 5.5f, hapticOnPress = true),
+                    modifier = Modifier
+                        .touchSpringCard(pressScale = 0.98f, maxTiltDeg = 5.5f, hapticOnPress = true)
+                        .testTag("more_profile_hero"),
                     shape = RoundedCornerShape(SpendlyTokens.HeroRadius),
                     color = semantic.heroSurface,
                     border = BorderStroke(1.dp, semantic.heroGold.copy(alpha = 0.28f)),
@@ -425,7 +428,9 @@ fun MoreScreen(
                         showSignOutConfirm = false
                         onSignOut()
                     },
-                    modifier = Modifier.pressBounce(pressScale = 0.94f),
+                    modifier = Modifier
+                        .pressBounce(pressScale = 0.94f)
+                        .testTag("more_sign_out_confirm"),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     shape = RoundedCornerShape(12.dp),
                 ) {
@@ -508,14 +513,25 @@ fun CategoriesScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack, modifier = Modifier.pressBounce()) {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier
+                            .pressBounce()
+                            .testTag("categories_back"),
+                    ) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
                     Button(
-                        onClick = { showAddDialog = true },
-                        modifier = Modifier.padding(end = 12.dp).pressBounce(pressScale = 0.94f),
+                        onClick = {
+                            nameError = null
+                            showAddDialog = true
+                        },
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .pressBounce(pressScale = 0.94f)
+                            .testTag("cat_add_button"),
                         shape = RoundedCornerShape(999.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     ) {
@@ -605,7 +621,10 @@ fun CategoriesScreen(
 
     if (showAddDialog) {
         AlertDialog(
-            onDismissRequest = { showAddDialog = false },
+            onDismissRequest = {
+                nameError = null
+                showAddDialog = false
+            },
             title = { Text("New Category") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -613,11 +632,15 @@ fun CategoriesScreen(
                         listOf(TransactionType.EXPENSE, TransactionType.INCOME).forEach { t ->
                             val active = newType == t
                             Surface(
-                                onClick = { newType = t },
+                                onClick = {
+                                    newType = t
+                                    nameError = null
+                                },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(42.dp)
-                                    .pressBounce(pressScale = 0.94f),
+                                    .height(48.dp)
+                                    .pressBounce(pressScale = 0.94f)
+                                    .testTag("cat_type_${t.name.lowercase()}"),
                                 shape = RoundedCornerShape(10.dp),
                                 color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerLow,
                             ) {
@@ -634,13 +657,16 @@ fun CategoriesScreen(
                     OutlinedTextField(
                         value = newName,
                         onValueChange = {
-                            newName = it
+                            newName = it.take(60)
                             nameError = null
                         },
                         label = { Text("Category Name") },
                         isError = nameError != null,
                         supportingText = nameError?.let { err -> { Text(err) } },
                         singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("cat_name_input"),
                         shape = RoundedCornerShape(SpendlyTokens.InputRadius),
                     )
                 }
@@ -648,14 +674,23 @@ fun CategoriesScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        if (newName.isBlank()) {
-                            nameError = "Enter a category name"
-                        } else {
-                            onAddCategory(newName, newType, if (newType == TransactionType.INCOME) "salary" else "shopping")
-                            newName = ""
-                            showAddDialog = false
+                        val trimmed = newName.trim()
+                        val duplicate = uiState.categories.any {
+                            it.type == newType && it.name.equals(trimmed, ignoreCase = true)
+                        }
+                        when {
+                            trimmed.isEmpty() -> nameError = "Enter a category name"
+                            trimmed.length > 60 -> nameError = "Category name must be 60 characters or fewer"
+                            duplicate -> nameError = "A ${newType.label.lowercase()} category named \"$trimmed\" already exists"
+                            else -> {
+                                onAddCategory(trimmed, newType, if (newType == TransactionType.INCOME) "salary" else "shopping")
+                                newName = ""
+                                nameError = null
+                                showAddDialog = false
+                            }
                         }
                     },
+                    modifier = Modifier.testTag("cat_save_button"),
                     shape = RoundedCornerShape(12.dp),
                 ) {
                     Text("Save")
@@ -663,7 +698,10 @@ fun CategoriesScreen(
             },
             dismissButton = {
                 OutlinedButton(
-                    onClick = { showAddDialog = false },
+                    onClick = {
+                        nameError = null
+                        showAddDialog = false
+                    },
                     shape = RoundedCornerShape(12.dp),
                 ) { Text("Cancel") }
             },
@@ -683,10 +721,23 @@ fun ImportExportScreen(
     val context = LocalContext.current
     val semantic = SpendlyTheme.semantic
     var wizardStep by remember { mutableIntStateOf(0) }
-    var destAccountId by remember(uiState.activeAccounts) {
+    var destAccountId by remember {
         mutableStateOf(uiState.activeAccounts.firstOrNull()?.id ?: "")
     }
-    var importCurrency by remember { mutableStateOf(uiState.defaultCurrencyCode) }
+    var importCurrency by remember {
+        mutableStateOf(uiState.activeAccounts.firstOrNull()?.currencyCode ?: uiState.defaultCurrencyCode)
+    }
+    LaunchedEffect(uiState.activeAccounts) {
+        val selectedStillExists = uiState.activeAccounts.any { it.id == destAccountId }
+        if (!selectedStillExists) {
+            val fallback = uiState.activeAccounts.firstOrNull()
+            destAccountId = fallback?.id ?: ""
+            importCurrency = fallback?.currencyCode ?: uiState.defaultCurrencyCode
+        }
+    }
+    BackHandler(enabled = wizardStep > 0) {
+        wizardStep = 0
+    }
     var rawCsvText by remember {
         mutableStateOf(
             """
@@ -704,7 +755,7 @@ fun ImportExportScreen(
 
     val parsedRows = remember(rawCsvText, destAccountId, importCurrency, wizardStep) {
         if (wizardStep == 0 || destAccountId.isBlank()) emptyList()
-        else parseCsvRows(rawCsvText, importCurrency, destAccountId, isDuplicateCandidate)
+        else CsvUtils.parseCsvRows(rawCsvText, importCurrency, destAccountId, isDuplicateCandidate)
     }
 
     Scaffold(
@@ -723,7 +774,14 @@ fun ImportExportScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack, modifier = Modifier.pressBounce()) {
+                    IconButton(
+                        onClick = {
+                            if (wizardStep > 0) wizardStep = 0 else onNavigateBack()
+                        },
+                        modifier = Modifier
+                            .pressBounce()
+                            .testTag("import_export_back"),
+                    ) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -763,7 +821,9 @@ fun ImportExportScreen(
                                     value = rawCsvText,
                                     onValueChange = { rawCsvText = it },
                                     label = { Text("CSV Content (Edit or paste bank CSV)") },
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("csv_raw_input"),
                                     minLines = 4,
                                     shape = RoundedCornerShape(SpendlyTokens.InputRadius),
                                 )
@@ -805,7 +865,12 @@ fun ImportExportScreen(
                                             val body = buildString {
                                                 appendLine("Date,Type,Description,Amount,Currency")
                                                 uiState.transactions.forEach {
-                                                    appendLine("${DateFormatters.formatIsoDate(it.dateMillis)},${it.type.label},\"${it.description}\",${it.amountMinor / 100.0},${it.currencyCode}")
+                                                    val date = CsvUtils.escapeCsvField(DateFormatters.formatIsoDate(it.dateMillis))
+                                                    val typeLabel = CsvUtils.escapeCsvField(it.type.label)
+                                                    val desc = CsvUtils.escapeCsvField(it.description)
+                                                    val amt = CsvUtils.formatMinorForCsv(it.amountMinor, it.currencyCode)
+                                                    val cur = CsvUtils.escapeCsvField(it.currencyCode)
+                                                    appendLine("$date,$typeLabel,$desc,$amt,$cur")
                                                 }
                                             }
                                             file.writeText(body)
@@ -814,7 +879,8 @@ fun ImportExportScreen(
                                         modifier = Modifier
                                             .weight(1f)
                                             .height(48.dp)
-                                            .pressBounce(pressScale = 0.95f),
+                                            .pressBounce(pressScale = 0.95f)
+                                            .testTag("csv_export_button"),
                                         shape = RoundedCornerShape(12.dp),
                                         border = BorderStroke(1.dp, semantic.surfaceBorder),
                                     ) {
@@ -831,7 +897,8 @@ fun ImportExportScreen(
                                         modifier = Modifier
                                             .weight(1f)
                                             .height(48.dp)
-                                            .pressBounce(pressScale = 0.95f),
+                                            .pressBounce(pressScale = 0.95f)
+                                            .testTag("backup_export_button"),
                                         shape = RoundedCornerShape(12.dp),
                                         border = BorderStroke(1.dp, semantic.surfaceBorder),
                                     ) {
@@ -843,7 +910,8 @@ fun ImportExportScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(48.dp)
-                                        .pressBounce(pressScale = 0.96f),
+                                        .pressBounce(pressScale = 0.96f)
+                                        .testTag("restore_snapshot_button"),
                                     shape = RoundedCornerShape(12.dp),
                                     border = BorderStroke(1.dp, semantic.surfaceBorder),
                                 ) {
@@ -979,7 +1047,8 @@ fun ImportExportScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(50.dp)
-                                    .pressBounce(pressScale = 0.95f),
+                                    .pressBounce(pressScale = 0.95f)
+                                    .testTag("csv_back_step_button"),
                                 shape = RoundedCornerShape(12.dp),
                                 border = BorderStroke(1.dp, semantic.surfaceBorder),
                             ) {
@@ -1036,6 +1105,7 @@ fun ImportExportScreen(
                         showRestoreConfirm = false
                         statusMessage = "Restored snapshot successfully."
                     },
+                    modifier = Modifier.testTag("confirm_restore_button"),
                     shape = RoundedCornerShape(12.dp),
                 ) {
                     Text("Restore")
@@ -1047,53 +1117,6 @@ fun ImportExportScreen(
                     shape = RoundedCornerShape(12.dp),
                 ) { Text("Cancel") }
             },
-        )
-    }
-}
-
-private fun parseCsvRows(
-    raw: String,
-    currencyCode: String,
-    destAccountId: String,
-    isDuplicateCandidate: (Long, Long, String, String) -> Boolean,
-): List<CsvImportRow> {
-    val lines = raw.lines().map { it.trim() }.filter { it.isNotEmpty() }
-    if (lines.size <= 1) return emptyList()
-    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-
-    return lines.drop(1).mapIndexed { index, line ->
-        val cols = line.split(",").map { it.trim() }
-        val dateText = cols.getOrNull(0) ?: ""
-        val desc = cols.getOrNull(1) ?: ""
-        val amtText = cols.getOrNull(2) ?: ""
-        val typeText = cols.getOrNull(3) ?: "Expense"
-
-        val parsedDate = runCatching { sdf.parse(dateText)?.time }.getOrNull()
-        val parsedMinor = MoneyFormatter.parseMajorToMinor(amtText, currencyCode)
-        val type = if (typeText.equals("Income", ignoreCase = true)) TransactionType.INCOME else TransactionType.EXPENSE
-
-        val err = when {
-            parsedDate == null -> "Invalid date format (expected YYYY-MM-DD)"
-            desc.isBlank() -> "Missing description"
-            parsedMinor == null || parsedMinor <= 0L -> "Amount must be greater than zero"
-            else -> null
-        }
-
-        val dup = if (err == null && parsedDate != null && parsedMinor != null) {
-            isDuplicateCandidate(parsedDate, parsedMinor, desc, destAccountId)
-        } else false
-
-        CsvImportRow(
-            rowNumber = index + 1,
-            dateText = dateText,
-            parsedDateMillis = parsedDate,
-            description = desc,
-            amountText = amtText,
-            parsedAmountMinor = parsedMinor,
-            type = type,
-            categoryId = if (type == TransactionType.INCOME) "cat_salary" else "cat_groceries",
-            isDuplicate = dup,
-            errorMessage = err,
         )
     }
 }
@@ -1282,15 +1305,24 @@ fun SettingsDetailScreen(
     }
 
     var editingName by remember(uiState.profileName) { mutableStateOf(uiState.profileName) }
+    var nameError by remember { mutableStateOf<String?>(null) }
     var showSignOutConfirm by remember { mutableStateOf(false) }
+    var pendingNotifToggle by remember { mutableStateOf<String?>(null) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
         if (!granted) {
-            onUpdateDailyReminder(false)
-            SpendlyNotificationHelper.updateDailyReminderSchedule(context, false)
+            when (pendingNotifToggle) {
+                "alerts" -> onUpdatePreferences(null, false, null, null)
+                "digest" -> onUpdatePreferences(null, null, false, null)
+                "daily" -> {
+                    onUpdateDailyReminder(false)
+                    SpendlyNotificationHelper.updateDailyReminderSchedule(context, false)
+                }
+            }
         }
+        pendingNotifToggle = null
     }
 
     Scaffold(
@@ -1394,7 +1426,8 @@ fun SettingsDetailScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .minimumInteractiveComponentSize()
-                                            .pressBounce(pressScale = 0.97f),
+                                            .pressBounce(pressScale = 0.97f)
+                                            .testTag("language_option_$idx"),
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(16.dp),
@@ -1427,10 +1460,12 @@ fun SettingsDetailScreen(
                                 checked = uiState.budgetAlertsEnabled,
                                 onCheckedChange = { enabled ->
                                     if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !SpendlyNotificationHelper.hasPermission(context)) {
+                                        pendingNotifToggle = "alerts"
                                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                     }
                                     onUpdatePreferences(null, enabled, null, null)
                                 },
+                                switchTestTag = "toggle_budget_alerts",
                             )
                         }
                         item {
@@ -1440,10 +1475,12 @@ fun SettingsDetailScreen(
                                 checked = uiState.weeklyDigestEnabled,
                                 onCheckedChange = { enabled ->
                                     if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !SpendlyNotificationHelper.hasPermission(context)) {
+                                        pendingNotifToggle = "digest"
                                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                     }
                                     onUpdatePreferences(null, null, enabled, null)
                                 },
+                                switchTestTag = "toggle_weekly_digest",
                             )
                         }
                         item {
@@ -1453,11 +1490,13 @@ fun SettingsDetailScreen(
                                 checked = uiState.dailyReminderEnabled,
                                 onCheckedChange = { enabled ->
                                     if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !SpendlyNotificationHelper.hasPermission(context)) {
+                                        pendingNotifToggle = "daily"
                                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                     }
                                     onUpdateDailyReminder(enabled)
                                     SpendlyNotificationHelper.updateDailyReminderSchedule(context, enabled)
                                 },
+                                switchTestTag = "toggle_daily_reminder",
                             )
                         }
                     }
@@ -1469,6 +1508,7 @@ fun SettingsDetailScreen(
                                 subtitle = "Mask balances and transaction amounts across Home, Activity, and Accounts.",
                                 checked = uiState.privacyHideBalances,
                                 onCheckedChange = { onUpdatePreferences(null, null, null, it) },
+                                switchTestTag = "toggle_hide_balances",
                             )
                         }
                         item {
@@ -1495,23 +1535,36 @@ fun SettingsDetailScreen(
                                 ) {
                                     OutlinedTextField(
                                         value = editingName,
-                                        onValueChange = { editingName = it },
+                                        onValueChange = {
+                                            editingName = it.take(80)
+                                            nameError = null
+                                        },
                                         label = { Text("Display Name") },
-                                        modifier = Modifier.fillMaxWidth(),
+                                        isError = nameError != null,
+                                        supportingText = nameError?.let { err -> { Text(err) } },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("profile_name_input"),
                                         singleLine = true,
                                         shape = RoundedCornerShape(SpendlyTokens.InputRadius),
                                     )
                                     Button(
                                         onClick = {
-                                            if (editingName.isNotBlank()) {
-                                                onUpdatePreferences(editingName.trim(), null, null, null)
-                                                onNavigateBack()
+                                            val trimmed = editingName.trim()
+                                            when {
+                                                trimmed.isEmpty() -> nameError = "Enter a display name"
+                                                trimmed.length > 80 -> nameError = "Display name must be 80 characters or fewer"
+                                                else -> {
+                                                    onUpdatePreferences(trimmed, null, null, null)
+                                                    onNavigateBack()
+                                                }
                                             }
                                         },
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(50.dp)
-                                            .pressBounce(pressScale = 0.96f),
+                                            .pressBounce(pressScale = 0.96f)
+                                            .testTag("profile_save_button"),
                                         shape = RoundedCornerShape(12.dp),
                                     ) {
                                         Text("Save Profile")
@@ -1577,6 +1630,7 @@ fun SettingsDetailScreen(
                         showSignOutConfirm = false
                         onSignOut()
                     },
+                    modifier = Modifier.testTag("sign_out_confirm_button"),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     shape = RoundedCornerShape(12.dp),
                 ) {
@@ -1692,6 +1746,7 @@ private fun PreferenceToggleCard(
     subtitle: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    switchTestTag: String = "",
 ) {
     LedgerGroupCard {
         Row(
@@ -1717,7 +1772,11 @@ private fun PreferenceToggleCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                modifier = if (switchTestTag.isNotEmpty()) Modifier.testTag(switchTestTag) else Modifier,
+            )
         }
     }
 }

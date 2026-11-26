@@ -67,6 +67,7 @@ import com.example.ui.components.MonthlyCashFlowBarChart
 import com.example.ui.components.pressBounce
 import com.example.ui.theme.MoneyRowStyle
 import com.example.ui.theme.SpendlyTheme
+import com.example.util.CsvUtils
 import com.example.util.DateFormatters
 import com.example.util.MoneyFormatter
 import com.example.viewmodel.SpendlyUiState
@@ -245,7 +246,16 @@ fun ReportsScreen(
                                     val cat = uiState.categoryById(tx.categoryId)?.name ?: ""
                                     val acc = uiState.accountById(tx.accountId)?.name ?: ""
                                     appendLine(
-                                        "${DateFormatters.formatIsoDate(tx.dateMillis)},${tx.type.label},\"${tx.description}\",\"${tx.merchant}\",\"$cat\",\"$acc\",${tx.amountMinor / 100.0},${tx.currencyCode}"
+                                        listOf(
+                                            DateFormatters.formatIsoDate(tx.dateMillis),
+                                            tx.type.label,
+                                            CsvUtils.escapeCsvField(tx.description),
+                                            CsvUtils.escapeCsvField(tx.merchant),
+                                            CsvUtils.escapeCsvField(cat),
+                                            CsvUtils.escapeCsvField(acc),
+                                            CsvUtils.formatMinorForCsv(tx.amountMinor, tx.currencyCode),
+                                            tx.currencyCode,
+                                        ).joinToString(",")
                                     )
                                 }
                             }

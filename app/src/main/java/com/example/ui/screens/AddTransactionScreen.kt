@@ -506,7 +506,7 @@ fun AddTransactionScreen(
                             listOf(10, 25, 50, 100).forEach { addVal ->
                                 Surface(
                                     onClick = {
-                                        val current = amountText.toDoubleOrNull() ?: 0.0
+                                        val current = amountText.trim().replace(",", "").toDoubleOrNull() ?: 0.0
                                         val next = current + addVal
                                         amountText = if (currencySpec.minorDecimals == 0) {
                                             next.toLong().toString()
@@ -515,7 +515,10 @@ fun AddTransactionScreen(
                                         }
                                         amountError = null
                                     },
-                                    modifier = Modifier.minimumInteractiveComponentSize().pressBounce(pressScale = 0.92f),
+                                    modifier = Modifier
+                                        .minimumInteractiveComponentSize()
+                                        .pressBounce(pressScale = 0.92f)
+                                        .testTag("tx_quick_chip_$addVal"),
                                     shape = RoundedCornerShape(999.dp),
                                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                                     border = BorderStroke(1.dp, semantic.surfaceBorder),
@@ -705,8 +708,10 @@ fun AddTransactionScreen(
                         OutlinedTextField(
                             value = description,
                             onValueChange = {
-                                description = it
-                                descriptionError = null
+                                if (it.length <= 160) {
+                                    description = it
+                                    descriptionError = null
+                                }
                             },
                             label = { Text("Description *") },
                             placeholder = { Text("e.g., Weekly groceries, Coffee, Rent") },
@@ -722,8 +727,10 @@ fun AddTransactionScreen(
                         OutlinedTextField(
                             value = merchant,
                             onValueChange = {
-                                merchant = it
-                                descriptionError = null
+                                if (it.length <= 100) {
+                                    merchant = it
+                                    descriptionError = null
+                                }
                             },
                             label = { Text("Merchant or Payee (Optional)") },
                             placeholder = { Text("e.g., Trader Joe's, Landlord") },
@@ -736,7 +743,7 @@ fun AddTransactionScreen(
 
                         OutlinedTextField(
                             value = notes,
-                            onValueChange = { notes = it },
+                            onValueChange = { if (it.length <= 500) notes = it },
                             label = { Text("Note (Optional)") },
                             placeholder = { Text("Reference details, split info, receipt note...") },
                             modifier = Modifier

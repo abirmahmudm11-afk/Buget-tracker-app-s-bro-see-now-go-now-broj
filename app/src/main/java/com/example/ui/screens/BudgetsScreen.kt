@@ -67,10 +67,12 @@ import com.example.ui.components.pressBounce
 import com.example.ui.components.touchSpringCard
 import com.example.ui.theme.SpendlyTheme
 import com.example.ui.theme.SpendlyTokens
+import com.example.util.CurrencyCatalog
 import com.example.util.DateFormatters
 import com.example.util.MoneyFormatter
 import com.example.viewmodel.SpendlyUiState
 import java.util.Locale
+import kotlin.math.pow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -341,7 +343,7 @@ fun BudgetsScreen(
                     scope,
                     catId,
                     limitMinor,
-                    uiState.defaultCurrencyCode,
+                    editingBudget?.currencyCode ?: uiState.defaultCurrencyCode,
                     uiState.selectedPeriod,
                 )
                 showBudgetForm = false
@@ -511,6 +513,8 @@ private fun BudgetFormSheet(
     val expenseCategories = remember(uiState.categories) {
         uiState.categories.filter { it.isActive && it.type == TransactionType.EXPENSE }
     }
+    val formCurrencyCode = editingBudget?.currencyCode ?: uiState.defaultCurrencyCode
+    val currencySpec = remember(formCurrencyCode) { CurrencyCatalog.findByCode(formCurrencyCode) }
 
     var scope by remember { mutableStateOf(editingBudget?.scope ?: initialScope) }
     var selectedCatId by remember {
@@ -519,12 +523,14 @@ private fun BudgetFormSheet(
     var limitText by remember {
         mutableStateOf(
             if (editingBudget != null) {
-                String.format(Locale.US, "%.2f", editingBudget.limitMinor / 100.0)
+                val div = if (currencySpec.minorDecimals == 0) 1.0 else 10.0.pow(currencySpec.minorDecimals.toDouble())
+                String.format(Locale.US, "%.${currencySpec.minorDecimals}f", editingBudget.limitMinor / div)
             } else ""
         )
     }
     var catMenuExpanded by remember { mutableStateOf(false) }
     var limitError by remember { mutableStateOf<String?>(null) }
+    var categoryError by remember { mutableStateOf<String?>(null) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -558,11 +564,15 @@ private fun BudgetFormSheet(
                     BudgetScope.entries.forEach { s ->
                         val active = scope == s
                         Surface(
-                            onClick = { scope = s },
+                            onClick = {
+                                scope = s
+                                categoryError = null
+                            },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(40.dp)
-                                .pressBounce(pressScale = 0.93f, hapticOnPress = true),
+                                .pressBounce(pressScale = 0.93f, hapticOnPress = true)
+                                .testTag("budget_scope_${s.name.lowercase()}"),
                             shape = RoundedCornerShape(999.dp),
                             color = if (active) MaterialTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent,
                         ) {
@@ -589,10 +599,13 @@ private fun BudgetFormSheet(
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Expense category") },
+                        isError = categoryError != null,
+                        supportingText = categoryError?.let { err -> { Text(err) } },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = catMenuExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .testTag("budget_category_dropdown"),
                         shape = RoundedCornerShape(12.dp),
                     )
                     ExposedDropdownMenu(
@@ -604,6 +617,7 @@ private fun BudgetFormSheet(
                                 text = { Text(cat.name) },
                                 onClick = {
                                     selectedCatId = cat.id
+                                    categoryError = null
                                     catMenuExpanded = false
                                 },
                             )
@@ -618,8 +632,8 @@ private fun BudgetFormSheet(
                     limitText = it
                     limitError = null
                 },
-                label = { Text("Spending limit (${uiState.defaultCurrencyCode}) *") },
-                placeholder = { Text("e.g., 500.00") },
+                label = { Text("Spending limit ($formCurrencyCode) *") },
+                placeholder = { Text(if (currencySpec.minorDecimals == 0) "e.g., 50000" else "e.g., 500.00") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth().testTag("budget_limit_input"),
                 isError = limitError != null,
@@ -630,10 +644,15 @@ private fun BudgetFormSheet(
 
             Button(
                 onClick = {
-                    val minor = MoneyFormatter.parseMajorToMinor(limitText, uiState.defaultCurrencyCode)
-                    if (minor == null || minor <= 0L) {
-                        limitError = "Enter a limit greater than zero"
-                    } else {
+                    val minor = MoneyFormatter.parseMajorToMinor(limitText, formCurrencyCode)
+                    limitError = if (minor == null || minor <= 0L) {
+                        "Enter a limit greater than zero"
+                    } else null
+                    categoryError = if (scope == BudgetScope.CATEGORY && selectedCatId.isBlank()) {
+                        "Select an expense category"
+                    } else null
+
+                    if (limitError == null && categoryError == null && minor != null && minor > 0L) {
                         val name = if (scope == BudgetScope.OVERALL) {
                             "${DateFormatters.formatShortMonth(uiState.selectedPeriod)} Overall Budget"
                         } else {
@@ -658,7 +677,8 @@ private fun BudgetFormSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
-                        .pressBounce(pressScale = 0.95f, hapticOnPress = true),
+                        .pressBounce(pressScale = 0.95f, hapticOnPress = true)
+                        .testTag("budget_remove_button"),
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
